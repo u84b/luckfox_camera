@@ -2,6 +2,11 @@
 #include "gpio/gpio_manager.h"
 #include <linux/videodev2.h>
 
+/*
+TODO LIST:
+    - README.md
+    - debug mode
+*/
 
 int main(){  
     camera cam0;
@@ -21,7 +26,7 @@ int main(){
 
 // settings:
     camera_init(&cam0); // initializing general V4L2 structures
-    
+    puts("Camera init started...");
     camera_open_video_interface(&cam0, device); // opening /dev/video11 file
     
     camera_check_capabilities(&cam0); // checking capabilities of V4L2
@@ -33,13 +38,10 @@ int main(){
     format_set_field(&format, V4L2_FIELD_NONE);
 
     camera_set_format(&cam0, format); // copying format structure to camera
-    puts("some info here");
 
     buffer_config_set_count(&buf_cfg, BUFFER_COUNT);
     buffer_config_set_memory(&buf_cfg, V4L2_MEMORY_MMAP);
-    puts("some info here");
     camera_set_buffer_config(&cam0, buf_cfg);
-puts("some info here"); 
 // preparations:
     camera_map_buffers(&cam0);
     camera_queue_buffers(&cam0);

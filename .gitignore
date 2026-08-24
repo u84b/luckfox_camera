@@ -1,4 +1,4 @@
 .vscode/
 img/
 bin/
-build.sh
+_build.sh

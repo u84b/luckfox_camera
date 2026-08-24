@@ -2,13 +2,6 @@
 #include <linux/videodev2.h>
 #include <stdint.h>
 
-
-/*
-TODO list:
- * cleanup function implementation/addition !!!!!!!!!!!!!!
-*/
-
-
 static int save_frame(
     const char *filename,
     struct buffer *buffers,
@@ -102,7 +95,7 @@ static int wait_for_frame(int fd)
 }
 
 
-int camera_init(camera * const c){
+int camera_init(camera * const c){ //camera init start
     c->fd = -1;
     c->stream_started = 0;
     //c->result = EXIT_FAILURE;
@@ -117,7 +110,7 @@ int camera_init(camera * const c){
     return 0;
 };
 
-void camera_cleanup_buffers(camera * const c)
+void camera_cleanup_buffers(camera * const c) // necessary for cleanup and closing camera
 {
     uint32_t i;
     uint32_t p;
@@ -160,6 +153,7 @@ int camera_check_capabilities(camera * const c){
     // printf("Driver: %s\n", c->cap.driver);
     // printf("Card:   %s\n", c->cap.card);
     // printf("Bus:    %s\n", c->cap.bus_info);
+    // I saved it for future debug mode
 
     if (!(c->cap.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE)) {
         fprintf(stderr, "Device does not support multi-planar capture\n");
