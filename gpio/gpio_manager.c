@@ -7,12 +7,12 @@ int write_str(const char *path, const char *s){
     int fd = open(path, O_WRONLY);
     int result = -1;
     if (fd < 0) {
-        fprintf(stderr, "failed opening file %s : %s", path, strerror(errno));
+        fprintf(stderr, "failed opening file %s : %s\n", path, strerror(errno));
         goto end;
     }
 
     if (write(fd, s, strlen(s)) < 0){
-        fprintf(stderr, "failed writing in file %s : %s", path, strerror(errno));
+        fprintf(stderr, "failed writing in file %s : %s\n", path, strerror(errno));
         goto end;
     }
     result = 0;
@@ -86,7 +86,6 @@ int gpio_read(int gpio)
         goto out;
     }
     
-    putchar(c);
     ret = (c == '1') ? 1 : 0;
 
 out:

@@ -2,3 +2,5 @@
 img/
 bin/
 _build.sh
+*.png
+*.raw

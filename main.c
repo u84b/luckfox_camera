@@ -1,19 +1,43 @@
 #include "device/camera.h"
 #include "gpio/gpio_manager.h"
 #include <linux/videodev2.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
 /*
 TODO LIST:
-    - README.md
     - debug mode
 */
+
+int create_timestamp_name(char * const filename){
+    time_t raw_time = {0};
+    struct tm *info = NULL;
+    //puts("CREATE TIMESTAMP");
+
+    time(&raw_time);
+    
+    info = localtime(&raw_time);
+    
+    //printf("/userdata/frame_%02d.%02d_%02d_%02d_%02d.raw", 
+    //info->tm_mday, info->tm_mon+1, info->tm_hour, info->tm_min, info->tm_sec);
+    
+    int res = snprintf(filename, 64, "/userdata/frame_%02d.%02d_%02d_%02d_%02d.raw", 
+        info->tm_mday, info->tm_mon+1, info->tm_hour, info->tm_min, info->tm_sec);
+    
+    if (res < 0){
+        fprintf(stderr, "snprintf error : %s", strerror(errno));
+        return -1;
+    }
+    return 0;
+}
 
 int main(){  
     camera cam0;
     camera_format format;
     camera_buffer_config buf_cfg;
-    const char *output = "/userdata/frame.raw";
     const char *device = "/dev/video11";
+    char output[64];
     int gpio_button = 54;
 
     memset(&format, 0, sizeof(format));
@@ -25,9 +49,17 @@ int main(){
 
 
 // settings:
-    camera_init(&cam0); // initializing general V4L2 structures
+    if (camera_init(&cam0) < 0){
+        fprintf(stderr, "camera init failed: %s\n", strerror(errno));
+        return -1;
+    } // initializing general V4L2 structures
+    
     puts("Camera init started...");
-    camera_open_video_interface(&cam0, device); // opening /dev/video11 file
+    
+    if (camera_open_video_interface(&cam0, device) < 0) {
+        fprintf(stderr, "failed opening camera interface\n");
+        return -1;
+    } // opening /dev/video11 file
     
     camera_check_capabilities(&cam0); // checking capabilities of V4L2
 
@@ -49,13 +81,11 @@ int main(){
 // capture:
     camera_stream_on(&cam0);
 
-
-
     while (1) {
         int r = gpio_read(gpio_button);
-        
+
         if (r == 0){
-            printf("GPIO STATUS: %d\n", r);
+            create_timestamp_name(output);
             if (camera_capture_frame(&cam0, output) < 0)
                 return -1;
         }
