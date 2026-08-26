@@ -11,18 +11,14 @@ TODO LIST:
 */
 
 int create_timestamp_name(char * const filename){
-    time_t raw_time = {0};
     struct tm *info = NULL;
-    //puts("CREATE TIMESTAMP");
+    time_t raw_time = 0;
 
     time(&raw_time);
     
     info = localtime(&raw_time);
     
-    //printf("/userdata/frame_%02d.%02d_%02d_%02d_%02d.raw", 
-    //info->tm_mday, info->tm_mon+1, info->tm_hour, info->tm_min, info->tm_sec);
-    
-    int res = snprintf(filename, 64, "/userdata/frame_%02d.%02d_%02d_%02d_%02d.raw", 
+    int res = snprintf(filename, 64, "/userdata/img/frame_%02d.%02d_%02d_%02d_%02d.raw", 
         info->tm_mday, info->tm_mon+1, info->tm_hour, info->tm_min, info->tm_sec);
     
     if (res < 0){
@@ -35,9 +31,9 @@ int create_timestamp_name(char * const filename){
 int main(){  
     camera cam0;
     camera_format format;
+    char output[64];
     camera_buffer_config buf_cfg;
     const char *device = "/dev/video11";
-    char output[64];
     int gpio_button = 54;
 
     memset(&format, 0, sizeof(format));

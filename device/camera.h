@@ -35,20 +35,16 @@ typedef struct {
 } camera_buffer_config;
 
 typedef struct {
+    struct buffer buffers[BUFFER_COUNT];
+    camera_format format;
+    struct v4l2_capability cap;
+    camera_buffer_config cfg;
     int fd;
     int stream_started;
-
-    enum v4l2_buf_type type;
-    struct v4l2_capability cap;
-    camera_format format;
-    camera_buffer_config cfg;
-
-    struct buffer buffers[BUFFER_COUNT];
-
     uint32_t buffer_count;
     uint32_t plane_count;
-    uint32_t i;
-    uint32_t p;
+    uint32_t DEBUG_MODE;
+    enum v4l2_buf_type type;
 } camera;
 
 /*

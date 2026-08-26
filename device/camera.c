@@ -1,13 +1,12 @@
 #include "camera.h"
-#include <linux/videodev2.h>
-#include <stdint.h>
 
 static int save_frame(
     const char *filename,
     struct buffer *buffers,
     struct v4l2_buffer *buf,
     struct v4l2_plane *planes,
-    unsigned int plane_count)
+    unsigned int plane_count,
+    uint32_t DEBUG_MODE)
 {
     FILE *file;
     unsigned int p;
@@ -55,8 +54,7 @@ static int save_frame(
             perror("fclose");
             return -1;
         }
-
-        printf("Frame saved to %s\n", filename);
+        if (DEBUG_MODE & 1) printf("Frame saved to %s\n", filename);
 
         return 0;
 }
@@ -99,8 +97,10 @@ int camera_init(camera * const c){ //camera init start
     c->fd = -1;
     c->stream_started = 0;
     //c->result = EXIT_FAILURE;
-    unsigned int buffer_count = 0;
-    unsigned int plane_count = 0;
+    c->buffer_count = 0;
+    c->plane_count = 0;
+    c->DEBUG_MODE |= 0x0;
+
 
     memset(&c->cap, 0, sizeof(c->cap));
     memset(&c->format, 0, sizeof(c->format));
@@ -318,8 +318,8 @@ int camera_capture_frame(camera * const c, const char * const output){
     int result = 0;
 
     for (uint32_t i = 0; i < 10; i++) {
-        struct v4l2_buffer buf;
         struct v4l2_plane planes[PLANE_COUNT];
+        struct v4l2_buffer buf;
 
         if (wait_for_frame(c->fd) < 0){
             cleanup(c);
@@ -338,7 +338,7 @@ int camera_capture_frame(camera * const c, const char * const output){
             result = 1;
         }
         if (i == SKIP_FRAMES){
-            if (save_frame(output, c->buffers,&buf, planes, c->plane_count) < 0){
+            if (save_frame(output, c->buffers,&buf, planes, c->plane_count, c->DEBUG_MODE) < 0){
                 cleanup(c);
                 result = 1;
             }
