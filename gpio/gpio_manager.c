@@ -36,7 +36,7 @@ int gpio_export(int gpio){
 
 int gpio_unexport(int gpio){
     char buf[32];
-    snprintf(buf, strlen(buf), "%d", gpio);
+    snprintf(buf, sizeof(buf), "%d", gpio);
     if (write_str("/sys/class/gpio/unexport", buf) < 0){
         if (errno == EBUSY) return 0;
         return -1;
@@ -55,7 +55,7 @@ int gpio_direction(int gpio, char const * dir){
 
 int gpio_write(int gpio, char *const data){
     char buf[32];
-    snprintf(buf, strlen(buf), "/sys/class/gpio/gpio%d/value", gpio);
+    snprintf(buf, sizeof(buf), "/sys/class/gpio/gpio%d/value", gpio);
     
     if (write_str(buf, data) < 0) {
         return -1;
@@ -63,32 +63,55 @@ int gpio_write(int gpio, char *const data){
     return 0;
 }
 
-int gpio_read(int gpio)
-{
-    char path[64];
-    char c = '0';
-    int fd, ret = -1;
-
-    snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/value", gpio);
-    fd = open(path, O_RDONLY);
-    if (fd < 0) {
+int gpio_open(int * const fd_ptr, char * const path, int oflag){
+    //char path[64];
+    int result = -1;
+    *fd_ptr = open(path, oflag);
+    if (*fd_ptr < 0) {
         fprintf(stderr, "open(%s): %s\n", path, strerror(errno));
-        return -1;
+        goto end;
+    }
+    result = 0;
+end:
+    return result;
+}
+
+int gpio_monitor_pin_value(int * const fd_ptr, int gpio, int oflag){
+    char path[64];
+    int result = -1;
+    snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/value", gpio);
+    if (gpio_open(fd_ptr, path, oflag) < 0){
+        fprintf(stderr, "failed monitoring gpio%d value: %s\n", gpio, strerror(errno));
+        goto end;
+    }
+    result = 0;
+end:
+    return result;
+}
+
+int gpio_read(int * const fd_ptr, int gpio)
+{
+    char c = '0';
+    int result = -1;
+
+    if (lseek(*fd_ptr, 0, SEEK_SET) == -1) {
+        fprintf(stderr, "lseek(%s): gpio%d value\n", strerror(errno), gpio);
+        goto end;
     }
 
-    if (lseek(fd, 0, SEEK_SET) == -1) {
-        fprintf(stderr, "lseek(%s): %s\n", path, strerror(errno));
-        goto out;
-    }
-
-    if (read(fd, &c, 1) != 1) {
-        fprintf(stderr, "read(%s): %s\n", path, strerror(errno));
-        goto out;
+    if (read(*fd_ptr, &c, 1) != 1) {
+        fprintf(stderr, "read(%s): gpio%d value\n", strerror(errno), gpio);
+        goto end;
     }
     
-    ret = (c == '1') ? 1 : 0;
+    result = (c == '1') ? 1 : 0;
+end:
+    return result;
+// out:
+    // return gpio_close(fd_ptr, result);
+}
 
-out:
-    close(fd);
-    return ret;
+int gpio_close(int * const fd_ptr, int result){
+    close(*fd_ptr);
+    return result;
 }

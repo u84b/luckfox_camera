@@ -1,5 +1,6 @@
 #include "device/camera.h"
 #include "gpio/gpio_manager.h"
+#include <fcntl.h>
 #include <linux/videodev2.h>
 #include <stdio.h>
 #include <string.h>
@@ -35,6 +36,8 @@ int main(){
     camera_buffer_config buf_cfg;
     const char *device = "/dev/video11";
     int gpio_button = 54;
+    int fd_gpio = -1;
+    int is_opened = -1;
 
     memset(&format, 0, sizeof(format));
     memset(&buf_cfg, 0, sizeof(buf_cfg));
@@ -65,32 +68,47 @@ int main(){
     format_set_pixel_format(&format, V4L2_PIX_FMT_NV12);
     format_set_field(&format, V4L2_FIELD_NONE);
 
-    camera_set_format(&cam0, format); // copying format structure to camera
+    if (camera_set_format(&cam0, format) < 0){
+        fprintf(stderr, "failed setting camera format\n");
+        return -1;
+    } // copying format structure to camera
 
     buffer_config_set_count(&buf_cfg, BUFFER_COUNT);
     buffer_config_set_memory(&buf_cfg, V4L2_MEMORY_MMAP);
-    camera_set_buffer_config(&cam0, buf_cfg);
+    if (camera_set_buffer_config(&cam0, buf_cfg) < 0){
+        fprintf(stderr, "failed setting buffer configuration\n");
+        return -1;
+
+    } // setting buffer configuration for correct work with memory
 // preparations:
-    camera_map_buffers(&cam0);
+    camera_map_buffers(&cam0); // mmap usage here
     camera_queue_buffers(&cam0);
 
 // capture:
     camera_stream_on(&cam0);
-
-    while (1) {
-        int r = gpio_read(gpio_button);
-
-        if (r == 0){
-            create_timestamp_name(output);
-            if (camera_capture_frame(&cam0, output) < 0)
-                return -1;
+    
+    is_opened = gpio_monitor_pin_value(&fd_gpio, gpio_button, O_RDONLY); // reading GPIO value (changing by pressing button)
+    
+    if (is_opened == 0) {
+        while (1) {
+            if (gpio_read(&fd_gpio, gpio_button) == 0){
+                create_timestamp_name(output);
+                if (camera_capture_frame(&cam0, output) < 0)
+                    return -1;
+            }
+            usleep(20000);
         }
-        usleep(20000);
+    }
+    else {
+        fprintf(stderr, "couldn't open gpio %d value\n", gpio_button);
+        gpio_close(&fd_gpio, gpio_button);
     }
 
     camera_stream_off(&cam0);
     camera_cleanup_buffers(&cam0);
     camera_off(&cam0);
+    gpio_close(&fd_gpio, gpio_button);
+    gpio_unexport(gpio_button);
 
     return 0;
 }

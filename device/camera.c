@@ -178,10 +178,10 @@ void camera_set_type(camera  * const c, const uint32_t type){
 int camera_set_format(camera * const c, camera_format c_format){
     c_format.format.type = c->type;
     c->format = c_format;
+    int result = -1;
 
     if (v4l2_set_format(c->fd, &c->format.format) < 0){
-        cleanup(c);
-        return -1;
+        goto end;
     }
         
 
@@ -189,8 +189,7 @@ int camera_set_format(camera * const c, camera_format c_format){
 
     if (c->plane_count == 0 || c->plane_count > PLANE_COUNT) {
         fprintf(stderr, "Invalid plane count: %u\n", c->plane_count);
-        cleanup(c);
-        return 0;
+        goto end;
     }
 
     printf(
@@ -208,17 +207,21 @@ int camera_set_format(camera * const c, camera_format c_format){
     );
 
     printf("Planes: %u\n", c->plane_count);
-
-    return 0;
+    
+    result = 0;
+end:
+    cleanup(c);
+    return result;
 }   
 
 int camera_set_buffer_config(camera * const c, camera_buffer_config buf_cfg){
     buf_cfg.buf_config.type = c->type;
     c->cfg = buf_cfg;
+    
+    int result = -1;
 
     if (v4l2_request_buffers(c->fd, &c->cfg.buf_config) < 0){
-        cleanup(c);
-        return -1;
+        goto end;
     }
         
 
@@ -228,17 +231,21 @@ int camera_set_buffer_config(camera * const c, camera_buffer_config buf_cfg){
         fprintf(stderr,
                 "Too many buffers returned: %u\n",
                 c->buffer_count);
-        cleanup(c);
-        return -1;
+        goto end;
     }
 
-    return 0;
+
+
+end:
+    cleanup(c);
+    return result;
 }
 
 int camera_map_buffers(camera * const c){
     for (uint32_t i = 0; i < c->buffer_count; i++) {
-        struct v4l2_buffer buf;
         struct v4l2_plane planes[PLANE_COUNT];
+        struct v4l2_buffer buf;
+        
 
         memset(&buf, 0, sizeof(buf));
         memset(planes, 0, sizeof(planes));
@@ -282,8 +289,8 @@ int camera_map_buffers(camera * const c){
 
 int camera_queue_buffers(camera *const c){
     for (uint32_t i = 0; i < c->buffer_count; i++) {
-        struct v4l2_buffer buf;
         struct v4l2_plane planes[PLANE_COUNT];
+        struct v4l2_buffer buf;
 
         memset(&buf, 0, sizeof(buf));
         memset(planes, 0, sizeof(planes));
@@ -305,7 +312,6 @@ int camera_queue_buffers(camera *const c){
 
 int camera_stream_on(camera * const c){
     if (v4l2_stream_on(c->fd, c->type) < 0){
-        cleanup(c);
         return -1;
     }
 
@@ -322,7 +328,6 @@ int camera_capture_frame(camera * const c, const char * const output){
         struct v4l2_buffer buf;
 
         if (wait_for_frame(c->fd) < 0){
-            cleanup(c);
             result = 1;
         }
         memset(&buf, 0, sizeof(buf));
@@ -334,18 +339,15 @@ int camera_capture_frame(camera * const c, const char * const output){
         buf.m.planes = planes;
 
         if (v4l2_dequeue_buffer(c->fd, &buf, planes) < 0){
-            cleanup(c);
             result = 1;
         }
         if (i == SKIP_FRAMES){
             if (save_frame(output, c->buffers,&buf, planes, c->plane_count, c->DEBUG_MODE) < 0){
-                cleanup(c);
                 result = 1;
             }
         } 
         
         if (v4l2_queue_buffer(c->fd, &buf, planes) < 0){
-            cleanup(c);
             result = 1;
         }
     }

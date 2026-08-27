@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 
-REMOTE_PATH = "/userdata"
+REMOTE_PATH = "/userdata/img"
 LOCAL_RAW_DIR = "./raw_frames"
 OUTPUT_PNG_DIR = "./converted_png"
 WIDTH = 640
