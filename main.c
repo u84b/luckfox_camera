@@ -1,15 +1,21 @@
 #include "device/camera.h"
 #include "gpio/gpio_manager.h"
-#include <fcntl.h>
 #include <linux/videodev2.h>
-#include <stdio.h>
-#include <string.h>
 #include <time.h>
-
+#include <signal.h>
 /*
 TODO LIST:
+    - signal handling
     - debug mode
 */
+volatile sig_atomic_t keep_running = 1;
+
+void handle_termination(int signum){
+    if (signum == SIGTERM){
+        //puts("SIGTERM received...");
+        keep_running = 0;
+    }
+}
 
 int create_timestamp_name(char * const filename){
     struct tm *info = NULL;
@@ -30,6 +36,9 @@ int create_timestamp_name(char * const filename){
 }
 
 int main(){  
+    signal(SIGTERM, handle_termination);
+    signal(SIGINT, handle_termination);
+
     camera cam0;
     camera_format format;
     char output[64];
@@ -90,7 +99,7 @@ int main(){
     is_opened = gpio_monitor_pin_value(&fd_gpio, gpio_button, O_RDONLY); // reading GPIO value (changing by pressing button)
     
     if (is_opened == 0) {
-        while (1) {
+        while (1 & keep_running) {
             if (gpio_read(&fd_gpio, gpio_button) == 0){
                 create_timestamp_name(output);
                 if (camera_capture_frame(&cam0, output) < 0)
