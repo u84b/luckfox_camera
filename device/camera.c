@@ -1,60 +1,52 @@
 #include "camera.h"
 
-static int save_frame(
+int save_frame(camera * const c,
     const char *filename,
-    struct buffer *buffers,
     struct v4l2_buffer *buf,
-    struct v4l2_plane *planes,
-    unsigned int plane_count,
-    uint32_t DEBUG_MODE)
+    struct v4l2_plane *planes) // !
 {
     FILE *file;
     unsigned int p;
 
-    if (filename == NULL ||
-        buffers == NULL ||
+    if (c == NULL ||
+        filename == NULL ||
         buf == NULL ||
         planes == NULL) {
         errno = EINVAL;
     return -1;
         }
 
-        file = fopen(filename, "wb");
-        if (file == NULL) {
-            perror("fopen");
-            return -1;
-        }
+    file = fopen(filename, "wb");
+    if (file == NULL) {
+        perror("fopen");
+        return -1;
+    }
 
-        for (p = 0; p < plane_count; p++) {
-            size_t bytes_used;
+    for (p = 0; p < c->plane_count; p++) {
+        size_t bytes_used;
 
-            bytes_used = planes[p].bytesused;
+        bytes_used = planes[p].bytesused;
 
-            if (bytes_used == 0)
-                continue;
+        if (bytes_used == 0)
+            continue;
 
-            if (fwrite(
-                buffers[buf->index].addr[p],
-                1,
-                bytes_used,
-                file) != bytes_used) {
-                perror("fwrite");
+        if (fwrite(c->buffers[buf->index].addr[p],
+            1,bytes_used,file) != bytes_used) {
+            perror("fwrite");
             fclose(file);
             return -1;
-                }
-
-                printf(
-                    "Plane %u: %u bytes\n",
-                    p,
-                    planes[p].bytesused
-                );
         }
+    
+        if (c->OPTIONS_MASK & 1) printf("Plane %u: %u bytes\n", p, planes[p].bytesused);
+    
+    }
 
         if (fclose(file) != 0) {
             perror("fclose");
             return -1;
         }
-        if (DEBUG_MODE & 1) printf("Frame saved to %s\n", filename);
+
+        if (c->OPTIONS_MASK & 1) printf("Frame saved to %s\n", filename);
 
         return 0;
 }
@@ -99,7 +91,7 @@ int camera_init(camera * const c){ //camera init start
     //c->result = EXIT_FAILURE;
     c->buffer_count = 0;
     c->plane_count = 0;
-    c->DEBUG_MODE |= 0x0;
+    c->OPTIONS_MASK |= MASK_DEBUG;
 
 
     memset(&c->cap, 0, sizeof(c->cap));
@@ -150,10 +142,11 @@ int camera_check_capabilities(camera * const c){
     /*              
     ===============DEBUG INFO================
     */
-    // printf("Driver: %s\n", c->cap.driver);
-    // printf("Card:   %s\n", c->cap.card);
-    // printf("Bus:    %s\n", c->cap.bus_info);
-    // I saved it for future debug mode
+    if (c->OPTIONS_MASK & MASK_DEBUG) {
+        printf("Driver: %s\n", c->cap.driver);
+        printf("Card:   %s\n", c->cap.card);
+        printf("Bus:    %s\n", c->cap.bus_info);
+    }
 
     if (!(c->cap.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE)) {
         fprintf(stderr, "Device does not support multi-planar capture\n");
@@ -192,21 +185,23 @@ int camera_set_format(camera * const c, camera_format c_format){
         goto end;
     }
 
-    printf(
+    if (c->OPTIONS_MASK & MASK_DEBUG) {
+        printf(
             "Format: %c%c%c%c\n",
             c->format.format.fmt.pix_mp.pixelformat & 0xff,
             (c->format.format.fmt.pix_mp.pixelformat >> 8) & 0xff,
                (c->format.format.fmt.pix_mp.pixelformat >> 16) & 0xff,
                (c->format.format.fmt.pix_mp.pixelformat >> 24) & 0xff
-    );
+        );
 
-    printf(
+        printf(
         "Size:   %ux%u\n",
         c->format.format.fmt.pix_mp.width,
         c->format.format.fmt.pix_mp.height
-    );
+        );
 
-    printf("Planes: %u\n", c->plane_count);
+        printf("Planes: %u\n", c->plane_count);
+    }    
     
     result = 0;
 end:
@@ -342,7 +337,7 @@ int camera_capture_frame(camera * const c, const char * const output){
             result = 1;
         }
         if (i == SKIP_FRAMES){
-            if (save_frame(output, c->buffers,&buf, planes, c->plane_count, c->DEBUG_MODE) < 0){
+            if (save_frame(c, output, &buf, planes) < 0){
                 result = 1;
             }
         } 

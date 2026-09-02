@@ -20,6 +20,15 @@
 #define POLL_TIMEOUT 5000
 #define SKIP_FRAMES  9
 
+enum {
+    FLAG_DEBUG = 0,
+    FLAG_LOG = 1,
+    FLAG_ERR = 2
+};
+
+#define MASK_DEBUG (1U << FLAG_DEBUG)
+#define MASK_LOG (1U << FLAG_LOG)
+#define MASK_ERR (1U << FLAG_ERR)
 
 struct buffer {
     void *addr[PLANE_COUNT];
@@ -43,9 +52,11 @@ typedef struct {
     int stream_started;
     uint32_t buffer_count;
     uint32_t plane_count;
-    uint32_t DEBUG_MODE;
+    uint32_t OPTIONS_MASK;
     enum v4l2_buf_type type;
 } camera;
+
+
 
 /*
 CAMERA FORMAT PROCEDURES
@@ -81,5 +92,11 @@ int camera_off(camera * const c);
 
 
 void cleanup(camera * const c);
+
+// ADDITIONAL
+int save_frame(camera * const c,
+    const char *filename,
+    struct v4l2_buffer *buf,
+    struct v4l2_plane *planes);
 
 #endif
