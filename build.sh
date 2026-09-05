@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/sh
 
 set -u
 
@@ -10,5 +10,4 @@ echo Using: ${CC}
 output="$BIN_DIR/app"
 mkdir -p "$(dirname "$output")"
 
-
-${CC} -O2 main.c ./device/camera.c ./device/v4l2_utils.c ./gpio/gpio_manager.c -o "$output"
+${CC} -O2 main.c ./device/camera.c ./device/v4l2_utils.c ./gpio/gpio_manager.c ./json/config_json.c -o "$output"

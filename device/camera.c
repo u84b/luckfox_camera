@@ -54,6 +54,7 @@ int save_frame(camera * const c,
 static int wait_for_frame(int fd)
 {
     struct pollfd pfd;
+    int result = -1;
 
     memset(&pfd, 0, sizeof(pfd));
 
@@ -62,26 +63,27 @@ static int wait_for_frame(int fd)
 
     if (poll(&pfd, 1, POLL_TIMEOUT) < 0) {
         perror("poll");
-        return -1;
+        goto end;
     }
 
     if (pfd.revents & POLLERR) {
         fprintf(stderr, "Camera stream error\n");
-        return -1;
+        goto end;
     }
 
     if (pfd.revents & POLLHUP) {
         fprintf(stderr, "Camera stream hangup\n");
-        return -1;
+        goto end;
     }
 
     if (!(pfd.revents & POLLIN)) {
         fprintf(stderr, "Camera frame timeout\n");
         errno = ETIMEDOUT;
-        return -1;
+        goto end;
     }
-
-    return 0;
+    result = 0;
+end:
+    return result;
 }
 
 
@@ -122,7 +124,8 @@ void camera_cleanup_buffers(camera * const c) // necessary for cleanup and closi
 }
 
 
-
+// @TODO: it's relevant to make it more efficient/able to handle more errno
+// @TODO: think about cleanup...
 int camera_open_video_interface(camera * const c, const char * const filename){
     c->fd = open(filename, O_RDWR);
     if (c->fd < 0) {
@@ -134,9 +137,9 @@ int camera_open_video_interface(camera * const c, const char * const filename){
 };
 
 int camera_check_capabilities(camera * const c){
+    int result = -1;
     if (v4l2_query_capability(c->fd, &c->cap) < 0){
-        cleanup(c);
-        return -1;//cleanup(c);;
+        goto cleanup;
     }
         
     /*              
@@ -150,17 +153,19 @@ int camera_check_capabilities(camera * const c){
 
     if (!(c->cap.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE)) {
         fprintf(stderr, "Device does not support multi-planar capture\n");
-        cleanup(c);
-        return -1;
+        goto cleanup;
     }
 
     if (!(c->cap.capabilities & V4L2_CAP_STREAMING)) {
         fprintf(stderr, "Device does not support streaming I/O\n");
-        cleanup(c);
-        return -1;
+        goto cleanup;
     }
-    return 0;
-};
+    result = 0;
+
+cleanup:
+    cleanup(c);
+    return result;
+}
 
 
 
@@ -229,18 +234,16 @@ int camera_set_buffer_config(camera * const c, camera_buffer_config buf_cfg){
         goto end;
     }
 
-
-
 end:
     cleanup(c);
     return result;
 }
 
 int camera_map_buffers(camera * const c){
+    struct v4l2_plane planes[PLANE_COUNT];
+    struct v4l2_buffer buf;
+
     for (uint32_t i = 0; i < c->buffer_count; i++) {
-        struct v4l2_plane planes[PLANE_COUNT];
-        struct v4l2_buffer buf;
-        
 
         memset(&buf, 0, sizeof(buf));
         memset(planes, 0, sizeof(planes));
@@ -283,9 +286,11 @@ int camera_map_buffers(camera * const c){
 }
 
 int camera_queue_buffers(camera *const c){
+    
+    struct v4l2_plane planes[PLANE_COUNT];
+    struct v4l2_buffer buf;
+
     for (uint32_t i = 0; i < c->buffer_count; i++) {
-        struct v4l2_plane planes[PLANE_COUNT];
-        struct v4l2_buffer buf;
 
         memset(&buf, 0, sizeof(buf));
         memset(planes, 0, sizeof(planes));
@@ -314,13 +319,15 @@ int camera_stream_on(camera * const c){
 
     return 0;
 }
-
+// @TODO: determine which way of function termination/error handling is better
+// @TODO: optimize it including main.c context (while-loop)
 int camera_capture_frame(camera * const c, const char * const output){
+    struct v4l2_plane planes[PLANE_COUNT];
+    struct v4l2_buffer buf;
     int result = 0;
 
     for (uint32_t i = 0; i < 10; i++) {
-        struct v4l2_plane planes[PLANE_COUNT];
-        struct v4l2_buffer buf;
+        
 
         if (wait_for_frame(c->fd) < 0){
             result = 1;
