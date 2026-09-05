@@ -1,0 +1,30 @@
+{
+    "filesystem" : {
+        
+        "outputFileBase" : "/userdata/img/frame"
+    },
+    
+    "camera" : {
+
+        "videoFile" : "/dev/video11",
+
+        "frameSize" : {
+            "width" : 640,
+            "height" : 480
+        },
+    
+        "V4L2Params" : {
+            "fieldType" : "V4L2_PIX_FMT_NV12",
+            "memoryType" : "V4L2_MEMORY_MMAP"
+        },
+        
+        "cameraParams" : {
+            "bufferCount" : 4
+        },
+        
+        "gpioParams" : {
+            "GPIOButton" : 54
+        }
+    }
+    
+}

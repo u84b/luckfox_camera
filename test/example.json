@@ -1,0 +1,9 @@
+{
+  "camera": {
+    "device_path": "/dev/video11",
+    "width": 640,
+    "height": 480,
+    "memoryType": 1,
+    "_memoryType": "V4L2_MEMORY_MMAP"
+  }
+}
