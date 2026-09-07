@@ -1,11 +1,19 @@
 // I needed fast check for structure/values size determining
-#include "../device/camera.h"
-//#include "../json/lib/cJSON.h"
+#include "../app/app.h"
 #include <stddef.h>
 #include <stdio.h>
 
 
 int main() {
+    printf("=== APP STRUCTURE MEMORY MAP ===\n\n");
+    printf("Total Structure Size: %zu bytes\n\n", sizeof(camera_application));
+    printf("%-20s %-12s %-12s\n", "Member Name", "Byte Offset", "Size (Bytes)");
+    printf("%-20s %-12zu %-12zu\n", "cam",        offsetof(camera_application, cam),        sizeof(((camera_application*)0)->cam));
+    printf("%-20s %-12zu %-12zu\n", "format",        offsetof(camera_application, format),        sizeof(((camera_application*)0)->format));
+    printf("%-20s %-12zu %-12zu\n", "device",        offsetof(camera_application, device),        sizeof(((camera_application*)0)->device));
+    printf("%-20s %-12zu %-12zu\n", "buf_cfg",        offsetof(camera_application, buf_cfg),        sizeof(((camera_application*)0)->buf_cfg));
+
+
     printf("=== CAMERA STRUCTURE MEMORY MAP ===\n\n");
     printf("Total Structure Size: %zu bytes\n\n", sizeof(camera));
 

@@ -14,3 +14,5 @@ int gpio_monitor_pin_value(int * const fd_ptr, int gpio, int oflag);
 int gpio_write(int gpio, char * const data);
 int gpio_read(int * const fd_ptr, int gpio);
 int gpio_close(int * const fd_ptr, int gpio);
+
+int gpio_configuration(int gpio_pin_num);

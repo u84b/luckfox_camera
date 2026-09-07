@@ -1,5 +1,12 @@
 #include "camera.h"
 
+/*
+
+    I wanted to avoid risks and bugs, so I deleted ALL cleanup calls here. 
+    Only main.c (or app.c) will contain actual cleanup.
+
+*/
+
 int save_frame(camera * const c,
     const char *filename,
     struct v4l2_buffer *buf,
@@ -7,19 +14,20 @@ int save_frame(camera * const c,
 {
     FILE *file;
     unsigned int p;
+    int result = -1;
 
     if (c == NULL ||
         filename == NULL ||
         buf == NULL ||
         planes == NULL) {
         errno = EINVAL;
-    return -1;
+        goto end;
         }
 
     file = fopen(filename, "wb");
     if (file == NULL) {
         perror("fopen");
-        return -1;
+        goto end;
     }
 
     for (p = 0; p < c->plane_count; p++) {
@@ -34,7 +42,7 @@ int save_frame(camera * const c,
             1,bytes_used,file) != bytes_used) {
             perror("fwrite");
             fclose(file);
-            return -1;
+            goto end;
         }
     
         if (c->OPTIONS_MASK & 1) printf("Plane %u: %u bytes\n", p, planes[p].bytesused);
@@ -43,12 +51,12 @@ int save_frame(camera * const c,
 
         if (fclose(file) != 0) {
             perror("fclose");
-            return -1;
+            goto end;
         }
-
+        result = 0;
         if (c->OPTIONS_MASK & 1) printf("Frame saved to %s\n", filename);
-
-        return 0;
+end:
+        return result;
 }
 
 static int wait_for_frame(int fd)
@@ -127,19 +135,20 @@ void camera_cleanup_buffers(camera * const c) // necessary for cleanup and closi
 // @TODO: it's relevant to make it more efficient/able to handle more errno
 // @TODO: think about cleanup...
 int camera_open_video_interface(camera * const c, const char * const filename){
+    int result = -1;
     c->fd = open(filename, O_RDWR);
     if (c->fd < 0) {
         perror("open");
-        cleanup(c);
-        return -1;
+        goto end;
     }
-    return 0;
+end:
+    return result;
 };
 
 int camera_check_capabilities(camera * const c){
     int result = -1;
     if (v4l2_query_capability(c->fd, &c->cap) < 0){
-        goto cleanup;
+        goto end;
     }
         
     /*              
@@ -153,17 +162,16 @@ int camera_check_capabilities(camera * const c){
 
     if (!(c->cap.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE)) {
         fprintf(stderr, "Device does not support multi-planar capture\n");
-        goto cleanup;
+        goto end;
     }
 
     if (!(c->cap.capabilities & V4L2_CAP_STREAMING)) {
         fprintf(stderr, "Device does not support streaming I/O\n");
-        goto cleanup;
+        goto end;
     }
     result = 0;
 
-cleanup:
-    cleanup(c);
+end:
     return result;
 }
 
@@ -187,6 +195,7 @@ int camera_set_format(camera * const c, camera_format c_format){
 
     if (c->plane_count == 0 || c->plane_count > PLANE_COUNT) {
         fprintf(stderr, "Invalid plane count: %u\n", c->plane_count);
+        //cleanup(c);
         goto end;
     }
 
@@ -206,11 +215,10 @@ int camera_set_format(camera * const c, camera_format c_format){
         );
 
         printf("Planes: %u\n", c->plane_count);
-    }    
+    }
     
     result = 0;
 end:
-    cleanup(c);
     return result;
 }   
 
@@ -235,7 +243,6 @@ int camera_set_buffer_config(camera * const c, camera_buffer_config buf_cfg){
     }
 
 end:
-    cleanup(c);
     return result;
 }
 
@@ -259,7 +266,6 @@ int camera_map_buffers(camera * const c){
         */
         
         if (v4l2_query_buffer(c->fd, &buf, planes) < 0){
-            cleanup(c);
             return -1;
         }
 
@@ -277,7 +283,6 @@ int camera_map_buffers(camera * const c){
             if (c->buffers[i].addr[p] == MAP_FAILED) {
                 perror("mmap");
                 c->buffers[i].addr[p] = NULL;
-                cleanup(c);
                 return -1;
             }
         }
@@ -302,7 +307,6 @@ int camera_queue_buffers(camera *const c){
         buf.m.planes = planes;
 
         if (v4l2_queue_buffer(c->fd, &buf, planes) < 0){
-            cleanup(c);
             return -1;
         }
     }

@@ -1,9 +1,7 @@
-#include "device/camera.h"
-#include "gpio/gpio_manager.h"
-#include "json/lib/cJSON.h"
-#include <linux/videodev2.h>
+#include "app/app.h"
 #include <time.h>
 #include <signal.h>
+
 /*
 TODO LIST:
     MAIN PRIORITY: 
@@ -22,7 +20,6 @@ volatile sig_atomic_t keep_running = 1;
 
 void handle_termination(int signum){
     if (signum == SIGTERM){
-        //puts("SIGTERM received...");
         keep_running = 0;
     }
 }
@@ -44,99 +41,16 @@ int create_timestamp_name(char * const filename){
     }
     return 0;
 }
-// temporary function
-// will change its location in future updates
-char* read_file(const char *filename) {
-    FILE *file = NULL;
-    long length = 0;
-    char *content = NULL;
-    size_t read_chars = 0;
-
-    /* open in read binary mode */
-    file = fopen(filename, "rb");
-    if (file == NULL)
-    {
-        goto cleanup;
-    }
-
-    /* get the length */
-    if (fseek(file, 0, SEEK_END) != 0)
-    {
-        goto cleanup;
-    }
-    length = ftell(file);
-    if (length < 0)
-    {
-        goto cleanup;
-    }
-    if (fseek(file, 0, SEEK_SET) != 0)
-    {
-        goto cleanup;
-    }
-
-    /* allocate content buffer */
-    content = (char*)malloc((size_t)length + sizeof(""));
-    if (content == NULL)
-    {
-        goto cleanup;
-    }
-
-    /* read the file into memory */
-    read_chars = fread(content, sizeof(char), (size_t)length, file);
-    if ((long)read_chars != length)
-    {
-        free(content);
-        content = NULL;
-        goto cleanup;
-    }
-    content[read_chars] = '\0';
-
-
-cleanup:
-    if (file != NULL)
-    {
-        fclose(file);
-    }
-
-    return content;
-}
-// temporary function
-// will change its location in future updates
-static cJSON *parse_file(const char *filename)
-{
-    cJSON *parsed = NULL;
-    char *content = read_file(filename);
-
-    parsed = cJSON_Parse(content);
-
-    if (content != NULL)
-    {
-        free(content);
-    }
-
-    return parsed;
-}
 
 // prototype function in main.c
 // will change its location in future updates
-int gpio_configuration(int gpio_pin_num){
-    int result = -1;
 
-    if (gpio_export(gpio_pin_num) < 0) {
-        printf("gpio%d export failed\n", gpio_pin_num);
-    }
-    if (gpio_direction(gpio_pin_num, "in") < 0) {
-        printf("gpio%d setting direction failed\n", gpio_pin_num);
-    }
-    result = 0;
-    return result;
-}
 
 // prototype function in main.c
 // will change its location in future updates
 // and I also didn't want so many procedures to be called in main
 // @TODO: analyze error handling in more detail and make it more efficient
-// @TODO: Ideally, the function should be moved to camera.h, with some corrections
+// NO WAY. app.с will combine all main parts
 int init_camera_from_config(camera * const cam0, camera_format * const format, cJSON *json_tree, 
     cJSON *camera_params, camera_buffer_config * buf_cfg, 
     const char * config_path, const char * device){
@@ -174,6 +88,7 @@ int init_camera_from_config(camera * const cam0, camera_format * const format, c
 
     if (camera_check_capabilities(cam0) < 0) {
         fprintf(stderr, "v4l2 capabilities failed\n");
+        goto end;
     }; // checking capabilities of V4L2
     puts("Checked camera capabilities\n");
     camera_set_type(cam0, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE); // setting type for future tasks related to buffer and format configuration
@@ -197,10 +112,12 @@ int init_camera_from_config(camera * const cam0, camera_format * const format, c
 // preparations:
     if (camera_map_buffers(cam0) < 0) {
         fprintf(stderr, "failed mapping of camera buffers\n");
+        goto end;
     } // mmap usage here
     
     if (camera_queue_buffers(cam0) < 0) {
         fprintf(stderr, "failed queue camera buffers");
+        goto end;
     }
     result = 0;
 end:
@@ -216,8 +133,8 @@ int main(){
     cJSON *tree = {0};
     cJSON *camera_params = {0};
     char output[64];
-    camera_buffer_config buf_cfg;
     const char *config_path = "/userdata/config.json";
+    camera_buffer_config buf_cfg;
     const char *device = NULL;
     int gpio_button = 54;
     int fd_gpio = -1;
@@ -239,6 +156,9 @@ int main(){
         tree, camera_params, &buf_cfg, config_path,device) < 0) {
 
     }
+
+    cJSON_Delete(tree); // I forgot it... It's time to fix!
+    
 // capture:
     camera_stream_on(&cam0);
     

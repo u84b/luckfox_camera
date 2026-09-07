@@ -159,3 +159,16 @@ int gpio_close(int * const fd_ptr, int result){
     close(*fd_ptr);
     return result;
 }
+
+int gpio_configuration(int gpio_pin_num){
+    int result = -1;
+
+    if (gpio_export(gpio_pin_num) < 0) {
+        printf("gpio%d export failed\n", gpio_pin_num);
+    }
+    if (gpio_direction(gpio_pin_num, "in") < 0) {
+        printf("gpio%d setting direction failed\n", gpio_pin_num);
+    }
+    result = 0;
+    return result;
+}
