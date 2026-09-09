@@ -20,4 +20,6 @@
 
 6. IPC between camera daemon and converter daemon
    the camera will tell the converter the name of the new file (path)
+
+7. A utility for creating a custom configuration for a camera
    
