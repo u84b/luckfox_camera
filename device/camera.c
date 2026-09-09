@@ -383,6 +383,7 @@ int camera_capture_frame(camera * const c, const char * const output){
         
         if (wait_for_frame(c->fd) < 0){
             result = 1;
+            goto end;
         }
 
         memset(&buf, 0, sizeof(buf));
@@ -399,15 +400,18 @@ int camera_capture_frame(camera * const c, const char * const output){
         if (i == SKIP_FRAMES){
             if (save_frame(c, output, &buf, planes) < 0){
                 result = 1;
+                goto end;
             }
         } 
         
         if (v4l2_queue_buffer(c->fd, &buf, planes) < 0){
             result = 1;
+            goto end;
         }
     }
 
     result = 0;
+end:
     return result;
 }
 
