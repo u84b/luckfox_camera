@@ -15,10 +15,14 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define SC3336_MAX_WIDTH 2304
+#define SC3336_MAX_HEIGHT 1296
+
 #define PLANE_COUNT  VIDEO_MAX_PLANES
 #define BUFFER_COUNT 2
 #define POLL_TIMEOUT 5000
 #define SKIP_FRAMES  9
+#define FRAMES_COUNT 10
 
 enum {
     FLAG_DEBUG = 0,
@@ -61,16 +65,16 @@ typedef struct {
 /*
 CAMERA FORMAT PROCEDURES
 */
-void format_set_format(camera_format const * c_format, struct v4l2_format *format);
-void format_set_frame_size(camera_format * const c_format, const uint32_t width, const uint32_t height);
-void format_set_pixel_format(camera_format * const c_format, const uint32_t pixel_format);
-void format_set_field(camera_format * const c_format, const uint32_t field);
+int format_set_format(camera_format const * c_format, struct v4l2_format *format);
+int format_set_frame_size(camera_format * const c_format, const uint32_t width, const uint32_t height);
+int format_set_pixel_format(camera_format * const c_format, const uint32_t pixel_format);
+int format_set_field(camera_format * const c_format, const uint32_t field);
 
 /*
 BUFFER CONFIGURATION PROCEDURES
 */
-void buffer_config_set_count(camera_buffer_config * const buf_cfg, uint32_t count);
-void buffer_config_set_memory(camera_buffer_config * const buf_cfg, uint32_t memory);
+int buffer_config_set_count(camera_buffer_config * const buf_cfg, uint32_t count);
+int buffer_config_set_memory(camera_buffer_config * const buf_cfg, uint32_t memory);
 
 
 /*
@@ -84,14 +88,14 @@ int camera_set_format(camera * const c, camera_format c_format);
 int camera_set_buffer_config(camera * const c, camera_buffer_config buf_cfg);
 int camera_map_buffers(camera * const c);
 int camera_queue_buffers(camera * const c);
-void camera_cleanup_buffers(camera * const c);
+int camera_cleanup_buffers(camera * const c);
 int camera_stream_on(camera * const c);
 int camera_capture_frame(camera * const c, const char * const output);
 void camera_stream_off(camera * const c);
 int camera_off(camera * const c);
 
 
-void cleanup(camera * const c);
+int cleanup(camera * const c);
 
 // ADDITIONAL
 int save_frame(camera * const c,
