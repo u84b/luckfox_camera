@@ -1,9 +1,19 @@
 #include "camera.h"
+#include <string.h>
 
 /*
 
-    I wanted to avoid risks and bugs, so I deleted ALL cleanup calls here. 
+    1. I wanted to avoid risks and bugs, so I deleted ALL cleanup calls here. 
     Only main.c (or app.c) will contain actual cleanup.
+
+    2. Okay, now I want to check error handling and edge cases MORE ACCURATE AND PROPERLY
+*/
+
+/*
+
+return -1; error
+return 0; it's okay
+return 1; exception
 
 */
 
@@ -22,7 +32,7 @@ int save_frame(camera * const c,
         planes == NULL) {
         errno = EINVAL;
         goto end;
-        }
+    }
 
     file = fopen(filename, "wb");
     if (file == NULL) {
@@ -45,7 +55,7 @@ int save_frame(camera * const c,
             goto end;
         }
     
-        if (c->OPTIONS_MASK & 1) printf("Plane %u: %u bytes\n", p, planes[p].bytesused);
+        if (c->OPTIONS_MASK & MASK_DEBUG) printf("Plane %u: %u bytes\n", p, planes[p].bytesused);
     
     }
 
@@ -59,6 +69,7 @@ end:
         return result;
 }
 
+// @TODO: rewrite it exactly for struct camera
 static int wait_for_frame(int fd)
 {
     struct pollfd pfd;
@@ -94,8 +105,10 @@ end:
     return result;
 }
 
-
+// @TODO: add error description
 int camera_init(camera * const c){ //camera init start
+    if (c == NULL) return -1;
+
     c->fd = -1;
     c->stream_started = 0;
     //c->result = EXIT_FAILURE;
@@ -112,23 +125,38 @@ int camera_init(camera * const c){ //camera init start
     return 0;
 };
 
-void camera_cleanup_buffers(camera * const c) // necessary for cleanup and closing camera
-{
+int camera_cleanup_buffers(camera * const c) 
+{ // what the hell it was void instead of int?
     uint32_t i;
     uint32_t p;
 
+    if (c == NULL) {
+        return -1;
+    }
 
     for (i = 0; i < c->buffer_count; i++) {
         for (p = 0; p < c->plane_count; p++) {
-            if (c->buffers[i].addr[p] != NULL &&
-                c->buffers[i].addr[p] != MAP_FAILED) {
-                munmap(
-                    c->buffers[i].addr[p],
-                    c->buffers[i].length[p]
-                );
-                }
+
+            if (c->buffers[i].addr[p] == NULL ||
+                c->buffers[i].addr[p] == MAP_FAILED) {
+                continue;
+            }
+
+            if (munmap(c->buffers[i].addr[p],
+                       c->buffers[i].length[p]) < 0) {
+                perror("munmap failure");
+                return -1;
+            }
+
+            c->buffers[i].addr[p] = NULL;
+            c->buffers[i].length[p] = 0;
         }
     }
+
+    c->buffer_count = 0;
+    c->plane_count = 0;
+// I mixed up checking the state and cleaning up resources. But now I fixed it
+    return 0;
 }
 
 
@@ -136,17 +164,29 @@ void camera_cleanup_buffers(camera * const c) // necessary for cleanup and closi
 // @TODO: think about cleanup...
 int camera_open_video_interface(camera * const c, const char * const filename){
     int result = -1;
+
+    if (c == NULL) goto end;
+
+    if (filename == NULL) goto end;
+    /*I could add the option to open the file by default, 
+    but I will move the file selection outside of this function, 
+    in my opinion it is more reasonable*/
+
     c->fd = open(filename, O_RDWR);
     if (c->fd < 0) {
         perror("open");
         goto end;
     }
+    result = 0; // I forgot it last time, it could cause VERY BIG PROBLEMS DURING RUNTIME
 end:
     return result;
 };
-
+// @TODO: add error description
 int camera_check_capabilities(camera * const c){
     int result = -1;
+
+    if (c == NULL) goto end;
+
     if (v4l2_query_capability(c->fd, &c->cap) < 0){
         goto end;
     }
@@ -182,10 +222,13 @@ void camera_set_type(camera  * const c, const uint32_t type){
 }
 
 int camera_set_format(camera * const c, camera_format c_format){
+    int result = -1;
+    
+    if (c == NULL) goto end;
+
     c_format.format.type = c->type;
     c->format = c_format;
-    int result = -1;
-
+    
     if (v4l2_set_format(c->fd, &c->format.format) < 0){
         goto end;
     }
@@ -223,10 +266,13 @@ end:
 }   
 
 int camera_set_buffer_config(camera * const c, camera_buffer_config buf_cfg){
+    int result = -1;
+    
+    if (c == NULL) goto end;
+
     buf_cfg.buf_config.type = c->type;
     c->cfg = buf_cfg;
     
-    int result = -1;
 
     if (v4l2_request_buffers(c->fd, &c->cfg.buf_config) < 0){
         goto end;
@@ -235,12 +281,13 @@ int camera_set_buffer_config(camera * const c, camera_buffer_config buf_cfg){
 
     c->buffer_count = c->cfg.buf_config.count;
 
-    if (c->buffer_count > BUFFER_COUNT) {
-        fprintf(stderr,
-                "Too many buffers returned: %u\n",
-                c->buffer_count);
+    if (c->buffer_count == 0 || c->buffer_count > BUFFER_COUNT) { 
+        // The more cases I consider, the safer it is
+        fprintf(stderr,"Invalid buffers count: %u\n", c->buffer_count);
         goto end;
     }
+
+    result = 0; // fixed
 
 end:
     return result;
@@ -313,8 +360,10 @@ int camera_queue_buffers(camera *const c){
 
     return 0;
 }
-
+// @TODO: add error description
 int camera_stream_on(camera * const c){
+    if (c == NULL) return -1;
+
     if (v4l2_stream_on(c->fd, c->type) < 0){
         return -1;
     }
@@ -328,14 +377,15 @@ int camera_stream_on(camera * const c){
 int camera_capture_frame(camera * const c, const char * const output){
     struct v4l2_plane planes[PLANE_COUNT];
     struct v4l2_buffer buf;
-    int result = 0;
+    int result = -1;
 
-    for (uint32_t i = 0; i < 10; i++) {
+    for (uint32_t i = 0; i < FRAMES_COUNT ; i++) {
         
-
         if (wait_for_frame(c->fd) < 0){
             result = 1;
+            goto end;
         }
+
         memset(&buf, 0, sizeof(buf));
         memset(planes, 0, sizeof(planes));
 
@@ -350,13 +400,18 @@ int camera_capture_frame(camera * const c, const char * const output){
         if (i == SKIP_FRAMES){
             if (save_frame(c, output, &buf, planes) < 0){
                 result = 1;
+                goto end;
             }
         } 
         
         if (v4l2_queue_buffer(c->fd, &buf, planes) < 0){
             result = 1;
+            goto end;
         }
     }
+
+    result = 0;
+end:
     return result;
 }
 
@@ -367,15 +422,26 @@ void camera_stream_off(camera * const c){
             fprintf(stderr, "Warning: failed to stop stream\n");
     }
 }
-
+// @TODO: add error description
 int camera_off(camera * const c){
-    return close(c->fd);
+    if (c == NULL) return -1;
+    if (close(c->fd) < -1)
+    {
+        fprintf(stderr, "Warning: bad file descriptor\n");
+    }
+    
+    return 0;
 }
 
-void cleanup(camera * const c){
+// @TODO: add error description
+int cleanup(camera * const c){
+    if (c == NULL) return -1;
+
     camera_stream_off(c);
     camera_cleanup_buffers(c);
     camera_off(c);
+    
+    return 0;
 }
 
 /*
@@ -384,17 +450,44 @@ void cleanup(camera * const c){
 
 */
 
-void format_set_frame_size(camera_format * const c_format, const uint32_t width, const uint32_t height){
+int format_set_frame_size(camera_format * const c_format, const uint32_t width, const uint32_t height){
+    if (c_format == NULL) {
+        fprintf(stderr, "format NULL pointer:\n");
+        return -1;
+    }
+    
+    if (width == 0 || width > SC3336_MAX_WIDTH) {
+        fprintf(stderr, "Incorrect frame width: %d\n", width);
+        return -1;
+    }
+
+    if (height == 0 || height > SC3336_MAX_HEIGHT) {
+        fprintf(stderr, "Incorrect frame height: %d\n", height);
+        return -1;
+    }
+
     c_format->format.fmt.pix_mp.width = width;
     c_format->format.fmt.pix_mp.height = height;
+
+    return 0;
 }
 
-void format_set_pixel_format(camera_format * const c_format, const uint32_t pixel_format){
+int format_set_pixel_format(camera_format * const c_format, const uint32_t pixel_format){
+    if (c_format == NULL) {
+        fprintf(stderr, "format NULL pointer:\n");
+        return -1;
+    }
     c_format->format.fmt.pix_mp.pixelformat = pixel_format;
+    return 0;
 }
 
-void format_set_field(camera_format * const c_format, const uint32_t field) {
+int format_set_field(camera_format * const c_format, const uint32_t field) {
+    if (c_format == NULL) {
+        fprintf(stderr, "format NULL pointer:\n");
+        return -1;
+    }
     c_format->format.fmt.pix_mp.field = field;
+    return 0;
 }
 
 /*
@@ -403,12 +496,22 @@ void format_set_field(camera_format * const c_format, const uint32_t field) {
 
 */
 
-void buffer_config_set_count(camera_buffer_config * const buf_cfg, uint32_t count){
+int buffer_config_set_count(camera_buffer_config * const buf_cfg, uint32_t count){
+    if (buf_cfg == NULL) {
+        fprintf(stderr, "buffer config NULL pointer:\n");
+        return -1;
+    }
     buf_cfg->buf_config.count = count;
+    return 0;
 }
 
-void buffer_config_set_memory(camera_buffer_config * const buf_cfg, uint32_t memory){
+int buffer_config_set_memory(camera_buffer_config * const buf_cfg, uint32_t memory){
+    if (buf_cfg == NULL) {
+        fprintf(stderr, "buffer config NULL pointer:\n");
+        return -1;
+    }
     buf_cfg->buf_config.memory = memory;
+    return 0;
 }
 
 

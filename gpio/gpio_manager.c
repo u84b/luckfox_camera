@@ -6,6 +6,15 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+int check_if_null(const void *ptr, const char *name){
+    if (ptr == NULL) {
+        fprintf(stderr, "GPIO NULL pointer: %s\n", name);
+        return -1;
+    }
+
+    return 0;
+}
+
 int write_str(const char *path, const char *s) {
     int fd = open(path, O_WRONLY | O_CLOEXEC);
     if (fd < 0) {
@@ -75,6 +84,8 @@ int gpio_unexport(int gpio) {
 }
 
 int gpio_direction(int gpio, char const * dir){
+    if (check_if_null(dir, "direction") < 0) return -1;
+
     char buf[64];
     int written = snprintf(buf, sizeof(buf), "/sys/class/gpio/gpio%d/direction", gpio);
 
@@ -92,6 +103,8 @@ int gpio_direction(int gpio, char const * dir){
 }
 
 int gpio_write(int gpio, char *const data){
+    if (check_if_null(data, "write") < 0) return -1; 
+
     char buf[32];
     int written = snprintf(buf, sizeof(buf), "/sys/class/gpio/gpio%d/value", gpio);
     
@@ -102,7 +115,7 @@ int gpio_write(int gpio, char *const data){
     if (write_str(buf, data) < 0) {
         if (errno == ENOENT)
             return 0;
-        
+        return -1;
     }
     return 0;
 }
@@ -121,8 +134,14 @@ end:
 }
 
 int gpio_monitor_pin_value(int * const fd_ptr, int gpio, int oflag){
-    char path[64];
     int result = -1;
+
+    if (check_if_null(fd_ptr, "pin value monitoring") < 0) {
+        goto end;
+    }
+
+    char path[64];
+    
     snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/value", gpio);
     if (gpio_open(fd_ptr, path, oflag) < 0){
         fprintf(stderr, "failed monitoring gpio%d value: %s\n", gpio, strerror(errno));
@@ -135,9 +154,11 @@ end:
 
 int gpio_read(int * const fd_ptr, int gpio)
 {
-    char c = '0';
     int result = -1;
 
+    if (check_if_null(fd_ptr, "read") < 0) goto end;
+    char c = '0';
+    
     if (lseek(*fd_ptr, 0, SEEK_SET) == -1) {
         fprintf(stderr, "lseek(%s): gpio%d value\n", strerror(errno), gpio);
         goto end;
@@ -165,10 +186,14 @@ int gpio_configuration(int gpio_pin_num){
 
     if (gpio_export(gpio_pin_num) < 0) {
         printf("gpio%d export failed\n", gpio_pin_num);
+        goto end;
     }
     if (gpio_direction(gpio_pin_num, "in") < 0) {
         printf("gpio%d setting direction failed\n", gpio_pin_num);
+        goto end;
     }
+    
     result = 0;
+end:
     return result;
 }

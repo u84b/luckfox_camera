@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #define CAMERA_CONFIG_JSON_PATH "/userspace/config.json"
+#define CAMERA_VIDEO_NODE_PATH "/dev/video11";
 
 char* read_file(const char *filename);
 

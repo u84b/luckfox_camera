@@ -4,7 +4,12 @@
     "width": 640,
     "height": 480,
     "memoryType": 1,
-    "_memoryType": "V4L2_MEMORY_MMAP"
+    "_memoryType": "V4L2_MEMORY_MMAP",
+    "pixelFormat": 842094158,
+    "_pixelFormat" : "V4L2_PIX_FMT_NV12",
+    "field" : 1,
+    "_field" : "V4L2_FIELD_NONE",
+    "bufferCount" : 2
   },
 
   "gpio" : {
