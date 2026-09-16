@@ -40,13 +40,13 @@ int init_application(application *app){
     return 0;
 }
 
-int load_config_from_json(const char * const config_path, camera_config * const cfg){
+int load_config_from_json(const char * const config_path, camera_config * cfg){
 
     if (config_path == NULL) return 1; // okay, not fatal, because we can use default configuration
 
     if (cfg == NULL) return -1;
     
-    memset(cfg, 0, sizeof(cfg));
+    memset(&cfg, 0, sizeof(cfg));
     
     cJSON* json_tree = {0};
     cJSON* camera_params = {0};
@@ -58,33 +58,33 @@ int load_config_from_json(const char * const config_path, camera_config * const 
     if (json_tree == NULL)
     {
         printf("Parsing file %s failed\n", config_path);
-        return -1;
+        goto end;
     }
     
     camera_params = cJSON_GetObjectItem(json_tree, "camera");
 
-    buf = cJSON_GetObjectItem(json_tree, "device_path")->valuestring;
+    buf = cJSON_GetObjectItem(camera_params, "device_path")->valuestring;
 
     int written = snprintf(cfg->device_path, 32, "%s", buf);
 
     if (written < 0){
         fprintf(stderr, "snprintf error : %s", strerror(errno));
-        return -1;
+        goto end;
     }
 
-    cfg->format.format.fmt.pix_mp.width = cJSON_GetObjectItem(json_tree, "width")->valueint;
-    cfg->format.format.fmt.pix_mp.height = cJSON_GetObjectItem(json_tree, "height")->valueint;
-    cfg->format.format.fmt.pix_mp.pixelformat = cJSON_GetObjectItem(json_tree, "pixelFormat")->valueint;
-    cfg->buf_cfg.buf_config.memory = cJSON_GetObjectItem(json_tree, "memoryType")->valueint;
-    cfg->buf_cfg.buf_config.count = cJSON_GetObjectItem(json_tree, "bufferCount")->valueint;
+    cfg->format.format.fmt.pix_mp.width = cJSON_GetObjectItem(camera_params, "width")->valueint;
+    cfg->format.format.fmt.pix_mp.height = cJSON_GetObjectItem(camera_params, "height")->valueint;
+    cfg->format.format.fmt.pix_mp.pixelformat = cJSON_GetObjectItem(camera_params, "pixelFormat")->valueint;
+    cfg->buf_cfg.buf_config.memory = cJSON_GetObjectItem(camera_params, "memoryType")->valueint;
+    cfg->buf_cfg.buf_config.count = cJSON_GetObjectItem(camera_params, "bufferCount")->valueint;
 
     if (json_tree != NULL)
     {
         cJSON_Delete(json_tree);
     }
-    
-    
-    return 0;
+    result = 0;
+end:
+    return result;
 }
 
 int app_camera_init_from_config(camera * const c, camera_config * const config){
@@ -146,13 +146,9 @@ int app_camera_config_default(application *app){
     camera_format format = {0};
     camera_buffer_config buffer_config = {0};
     char *video_node = "/dev/video11";
-    char *buf = NULL;
-    int width = 0;
-    int height = 0;
-    int memory_type = 0;
     int result = -1;
 
-    int written = snprintf(app->device, 32, "%s", buf);
+    int written = snprintf(app->device, 32, "%s", video_node);
     
     if (written < 0){
         fprintf(stderr, "snprintf error : %s", strerror(errno));
@@ -176,7 +172,7 @@ int app_camera_config_default(application *app){
 
     camera_set_type(&app->cam, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE); // setting type for future tasks related to buffer and &app->format configuration
     
-    format_set_frame_size(&format, width, height); // setting frame size for camera capture
+    format_set_frame_size(&format, 640, 480); // setting frame size for camera capture
     format_set_pixel_format(&format, V4L2_PIX_FMT_NV12);
     format_set_field(&format, V4L2_FIELD_NONE);
 
@@ -221,12 +217,12 @@ int app_run_camera_stream(application * app){
     int result = -1;
     camera_stream_on(&app->cam);
 
-    app->is_opened = gpio_monitor_pin_value(app->fd_gpio, app->gpio_button, O_RDONLY);
+    app->is_opened = gpio_monitor_pin_value(&app->fd_gpio, app->gpio_button, O_RDONLY);
 
     if (app->is_opened == 0) {
         while (1) // soon I'll change it, but now we have what we have
         {
-            if (gpio_read(app->fd_gpio, app->gpio_button) == 0)
+            if (gpio_read(&app->fd_gpio, app->gpio_button) == 0)
             {
                 create_timestamp_name(app->output_filename);
                 if (camera_capture_frame(&app->cam, app->output_filename) < 0)
@@ -258,7 +254,7 @@ int app_cleanup(application * app) {
     camera_cleanup_buffers(&app->cam);
     camera_off(&app->cam);
     gpio_unexport(app->gpio_button);
-    gpio_close(app->fd_gpio, app->gpio_button);
+    gpio_close(&app->fd_gpio, app->gpio_button);
     
     return 0;
 }

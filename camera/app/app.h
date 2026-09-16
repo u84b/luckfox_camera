@@ -19,7 +19,7 @@ typedef struct {
 } application;
 
 int init_application(application *app); // just reset the application structure
-int load_config_from_json(const char * const config_path, camera_config * const cfg); // trying to load config from .json
+int load_config_from_json(const char * const config_path, camera_config * cfg); // trying to load config from .json
 int app_camera_init_from_config(camera * const c, camera_config * const config); // configure camera from config
 int app_camera_config_default(application *app); // using when it's impossible to use .json config
 int app_prepare_camera_buffers(application *app); // query-->mmap-->queue

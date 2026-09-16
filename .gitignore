@@ -4,5 +4,6 @@ bin/
 _build.sh
 *.png
 *.raw
-*.txt
 raw_frames/
+libs/
+build/

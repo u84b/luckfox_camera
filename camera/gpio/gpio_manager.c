@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-int check_if_null(const void *ptr, const char *name){
+int gpio_check_if_null(const void *ptr, const char *name){
     if (ptr == NULL) {
         fprintf(stderr, "GPIO NULL pointer: %s\n", name);
         return -1;
@@ -84,7 +84,7 @@ int gpio_unexport(int gpio) {
 }
 
 int gpio_direction(int gpio, char const * dir){
-    if (check_if_null(dir, "direction") < 0) return -1;
+    if (gpio_check_if_null(dir, "direction") < 0) return -1;
 
     char buf[64];
     int written = snprintf(buf, sizeof(buf), "/sys/class/gpio/gpio%d/direction", gpio);
@@ -103,7 +103,7 @@ int gpio_direction(int gpio, char const * dir){
 }
 
 int gpio_write(int gpio, char *const data){
-    if (check_if_null(data, "write") < 0) return -1; 
+    if (gpio_check_if_null(data, "write") < 0) return -1; 
 
     char buf[32];
     int written = snprintf(buf, sizeof(buf), "/sys/class/gpio/gpio%d/value", gpio);
@@ -136,7 +136,7 @@ end:
 int gpio_monitor_pin_value(int * const fd_ptr, int gpio, int oflag){
     int result = -1;
 
-    if (check_if_null(fd_ptr, "pin value monitoring") < 0) {
+    if (gpio_check_if_null(fd_ptr, "pin value monitoring") < 0) {
         goto end;
     }
 
@@ -156,7 +156,7 @@ int gpio_read(int * const fd_ptr, int gpio)
 {
     int result = -1;
 
-    if (check_if_null(fd_ptr, "read") < 0) goto end;
+    if (gpio_check_if_null(fd_ptr, "read") < 0) goto end;
     char c = '0';
     
     if (lseek(*fd_ptr, 0, SEEK_SET) == -1) {

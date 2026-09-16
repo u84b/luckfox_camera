@@ -2,8 +2,8 @@
 import os
 
 REMOTE_PATH = "/userdata/img"
-LOCAL_RAW_DIR = "./raw_frames"
-OUTPUT_PNG_DIR = "./converted_png"
+LOCAL_RAW_DIR = "./camera/raw_frames"
+OUTPUT_PNG_DIR = "./camera/converted_png"
 WIDTH = 640
 HEIGHT = 480
 
@@ -18,11 +18,11 @@ filenames = f.read().split()
 f.close()
 #pull .raw files from /userdata/
 for file in filenames:
-    if (not(os.path.isfile("./raw_frames/{}".format(file)))):
-        os.system("adb pull {} ./raw_frames".format(file))
+    if (not(os.path.isfile("./camera/raw_frames/{}".format(file)))):
+        os.system("adb pull {} ./camera/raw_frames".format(file))
 
 print(os.getcwd())
-filenames = os.listdir("./raw_frames")
+filenames = os.listdir("./camera/raw_frames")
 
 for file in filenames:
     os.system("ffmpeg -y -f rawvideo -pixel_format nv12 -video_size {}x{} -i {}/{} -frames:v 1 {}/{}png > /dev/null 2>&1".format(WIDTH, HEIGHT,
