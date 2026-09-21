@@ -1,6 +1,7 @@
 .vscode/
 img/
 bin/
+converter/notes
 _build.sh
 *.png
 *.raw
