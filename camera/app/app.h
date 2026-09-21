@@ -1,6 +1,7 @@
 #include "../device/camera.h"
 #include "../gpio/gpio_manager.h"
 #include "../json/config.h"
+#include <signal.h>
 
 /*
 
@@ -17,6 +18,10 @@ typedef struct {
     int fd_gpio;
     int is_opened;
 } application;
+
+typedef struct {
+
+} application_client;
 
 int init_application(application *app); // just reset the application structure
 int load_config_from_json(const char * const config_path, camera_config * cfg); // trying to load config from .json

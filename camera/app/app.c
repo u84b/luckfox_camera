@@ -3,10 +3,13 @@
 #include <string.h>
 #include <time.h>
 
+volatile static sig_atomic_t keep_running = 1;
 
-// init_application (gpio_configuration, load_config_from_json -> app_camera_init_from_config 
-//                         || app_camera_init_default)
-// 
+void handle_termination(int signum){
+    if (signum == SIGTERM || signum == SIGINT){ // it was obvious but I haven't changed it till now
+        keep_running = 0;
+    }
+}
 
 int create_timestamp_name(char * const filename){
     struct tm *info = NULL;
@@ -27,6 +30,9 @@ int create_timestamp_name(char * const filename){
 }
 
 int init_application(application *app){
+
+    signal(SIGTERM, handle_termination);
+    signal(SIGINT, handle_termination);
     
     memset(&app->cam, 0, sizeof(app->cam));
     // memset(&app->format, 0, sizeof(app->format));
@@ -41,18 +47,22 @@ int init_application(application *app){
 }
 
 int load_config_from_json(const char * const config_path, camera_config * cfg){
-
+    puts("LOAD_CONFIG_FROM_JSON");
     if (config_path == NULL) return 1; // okay, not fatal, because we can use default configuration
 
     if (cfg == NULL) return -1;
     
-    memset(&cfg, 0, sizeof(cfg));
+    memset(&cfg->buf_cfg, 0, sizeof(cfg->buf_cfg)); // I forgot it last time
+    memset(&cfg->device_path, 0, sizeof(cfg->device_path)); // it's neccessary to prevent segfault...
+    memset(&cfg->format, 0, sizeof(cfg->format));
+    //memset(cfg, 0, sizeof(cfg));
     
     cJSON* json_tree = {0};
     cJSON* camera_params = {0};
     char *buf = NULL;
     int result = -1;
 
+    puts("Parse file");
     json_tree = parse_file(config_path);
 
     if (json_tree == NULL)
@@ -61,17 +71,20 @@ int load_config_from_json(const char * const config_path, camera_config * cfg){
         goto end;
     }
     
+    puts("Get camera params");
     camera_params = cJSON_GetObjectItem(json_tree, "camera");
 
+    puts("Get device path");
     buf = cJSON_GetObjectItem(camera_params, "device_path")->valuestring;
-
-    int written = snprintf(cfg->device_path, 32, "%s", buf);
-
+    printf("%s\n", buf);
+    puts("snprintf");
+    int written = snprintf(cfg->device_path, sizeof(cfg->device_path), "%s", buf);
+    puts("snprintf done");
     if (written < 0){
         fprintf(stderr, "snprintf error : %s", strerror(errno));
         goto end;
     }
-
+    puts("Setting format info");
     cfg->format.format.fmt.pix_mp.width = cJSON_GetObjectItem(camera_params, "width")->valueint;
     cfg->format.format.fmt.pix_mp.height = cJSON_GetObjectItem(camera_params, "height")->valueint;
     cfg->format.format.fmt.pix_mp.pixelformat = cJSON_GetObjectItem(camera_params, "pixelFormat")->valueint;
@@ -214,13 +227,14 @@ end:
 }
 
 int app_run_camera_stream(application * app){
+
     int result = -1;
     camera_stream_on(&app->cam);
 
     app->is_opened = gpio_monitor_pin_value(&app->fd_gpio, app->gpio_button, O_RDONLY);
 
     if (app->is_opened == 0) {
-        while (1) // soon I'll change it, but now we have what we have
+        while (keep_running) // soon I'll change it, but now we have what we have
         {
             if (gpio_read(&app->fd_gpio, app->gpio_button) == 0)
             {
