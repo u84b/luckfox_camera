@@ -3,6 +3,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <cstring>
+#include <csignal>
 
 #define SOCK_PATH "/tmp/local.sock"
 

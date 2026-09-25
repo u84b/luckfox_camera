@@ -1,10 +1,20 @@
 #include <converter_server.hpp>
 
+
+volatile static std::sig_atomic_t keep_running = 1;
+
+extern "C" void handle_signal(int signum){
+    keep_running = 0;
+}
+
 // CURRENT STATE: PROTOTYPE DEVELOPING
 // @TODO: change implementation for sending data(image info) to converter
 namespace server {
 
     bool run(){
+
+        signal(SIGINT, handle_signal);
+        signal(SIGTERM, handle_signal);
 
         bool result = false;
 
@@ -40,7 +50,7 @@ namespace server {
 
         std::cout << "Server listening: " << SOCK_PATH << "\n";
 
-        while (1) {
+        while (keep_running) {
             struct sockaddr_un client_addr;
             int length = sizeof(client_addr);
 
