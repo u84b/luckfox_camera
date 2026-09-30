@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <poll.h>
 #include <unistd.h>
 #include <cstring>
 #include <csignal>
@@ -9,11 +10,11 @@
 
 namespace server {
 
-    typedef struct {
+    // typedef struct {
 
 
 
-    } converter_server;
+    // } converter_server;
 
     bool start();
     bool run();

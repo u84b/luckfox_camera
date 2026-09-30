@@ -15,6 +15,8 @@ extern "C" void handle_signal(int signum){
 namespace server {
 
     bool run(){
+         
+
         struct sigaction sa;
         sa.sa_handler = handle_signal;
         sigemptyset(&sa.sa_mask);
@@ -27,6 +29,10 @@ namespace server {
 
         // CREATING EXACTLY OUR SOCKET FOR CONVERTER SERVER
         int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+
+        struct pollfd clipoll;
+        memset(&clipoll, 0, sizeof(struct pollfd));
+
 
         if (server_fd < 0)
         {
@@ -48,47 +54,81 @@ namespace server {
             return false;
         }
         // LISTEN FOR NEW CLIENTS :)
-        if (listen(server_fd, 2) < -1)
+        if (listen(server_fd, 1) < -1)
         {
             std::cerr << "Listen failed\n";
             close(server_fd);
             return false;
         }
 
+        
         std::cout << "Server listening: " << SOCK_PATH << "\n" << "Status: " << keep_running << "\n";
         
+        
+
         struct sockaddr_un client_addr;
         char buffer[65];
         int length = sizeof(client_addr);
-        int client_fd = accept(
-                        server_fd,
-                        (sockaddr *)&client_addr,
-                        (socklen_t *)&length
-                    );
-            
-        std::cout << "Client FD = " << client_fd << "\n";
-            
-        if (client_fd < 0 && errno != EINTR)
-        {
-            perror("accept");       
-        }
-        else {
-            while (keep_running) {   
-                memset(buffer, '\0', sizeof(buffer));
-                int count = read(client_fd, buffer, sizeof(buffer));
-                if (count > 0)
+        int client_fd = -1;
+        
+        
+        while (keep_running) {
+            if (client_fd > 0)
+            {
+                int ready = poll(&clipoll, 1, -1);
+
+                if (ready < 0)
                 {
-                    std::cout << "Got: " << buffer << "\n with count: " << count << "\n";
-                    write(client_fd, buffer, count);
-                }            
+                    printf("socket fd: %m\n");
+                    break;
+                }
+                
+                if (clipoll.revents & POLLHUP)
+                {
+                    printf("Client FD=%d disconnected\n", client_fd);
+                    close(client_fd);
+                    client_fd = -1;
+                    std::memset(&clipoll, 0, sizeof(clipoll));
+                    continue;
+                }
+                
+
+                if (clipoll.revents & POLLIN){
+                    printf("revents = %d\n", clipoll.revents);
+                    std::memset(buffer, '\0', sizeof(buffer));
+                    int count = read(client_fd, buffer, sizeof(buffer));
+                    if (count > 0)
+                    {
+                        std::cout << "Got: " << buffer << "\n with count: " << count << "\n";
+                        write(client_fd, buffer, count);
+                    }
+                }
+            }
+            else if (client_fd == -1){
+                client_fd = accept(server_fd, (sockaddr *)&client_addr, (socklen_t *)&length);
+                if (client_fd < 0 && errno != EINTR)
+                {
+                    perror("accept");       
+                }
+
+                std::cout << "Client FD = " << client_fd << "\n";
+                
+                clipoll.fd = client_fd;
+                clipoll.events = POLLIN;
+                clipoll.revents = 0;
             }
         }
-
         
         if (client_fd)
         {
             close(client_fd);
         }
+
+        if (server_fd)
+        {
+            close(server_fd);
+        }
+        
 
         return result;
     }
