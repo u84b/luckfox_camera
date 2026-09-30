@@ -13,7 +13,7 @@ CC="${GCC_COMPILER:-}gcc"
 
 echo Using: ${CC}
 
-output="$BIN_DIR/app"
+output="$BIN_DIR/poll_gpio"
 mkdir -p "$(dirname "$output")"
 
-${CC} -O2 -Wall cjson_parse.c ../json/config.c ../json/lib/cJSON.c ../json/lib/cJSON_Utils.c -o "$output"
+${CC} -O2 -Wall -Wl,--gc-sections poll_gpio_test.c ../gpio/gpio_manager.c ../json/config.c ../json/lib/cJSON.c ../json/lib/cJSON_Utils.c -o "$output"

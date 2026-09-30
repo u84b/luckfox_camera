@@ -35,11 +35,10 @@ int init_application(application *app){
     signal(SIGINT, handle_termination);
     
     memset(&app->cam, 0, sizeof(app->cam));
-    // memset(&app->format, 0, sizeof(app->format));
-    // memset(&app->buf_cfg, 0, sizeof(app->buf_cfg));
 
     app->gpio_button = 54;
     app->fd_gpio = -1;
+    app->client_fd = -1;
     app->is_opened = -1;
 
 
@@ -55,7 +54,6 @@ int load_config_from_json(const char * const config_path, camera_config * cfg){
     memset(&cfg->buf_cfg, 0, sizeof(cfg->buf_cfg)); // I forgot it last time
     memset(&cfg->device_path, 0, sizeof(cfg->device_path)); // it's neccessary to prevent segfault...
     memset(&cfg->format, 0, sizeof(cfg->format));
-    //memset(cfg, 0, sizeof(cfg));
     
     cJSON* json_tree = {0};
     cJSON* camera_params = {0};
@@ -144,14 +142,7 @@ int app_camera_init_from_config(camera * const c, camera_config * const config){
     return 0;
 }
 
-// @TODO: complete all the options that can be added to the config.
-// @TODO: it's time to think about error handling during format setting
 
-
-
-
-// @TODO: add functionality and integrate it into the existing system
-// hardcoded config version
 int app_camera_config_default(application *app){
 
     if (app == NULL) return -1;
@@ -229,24 +220,78 @@ end:
 int app_run_camera_stream(application * app){
 
     int result = -1;
+    int flag = 0;
+    int connected = 0;
     camera_stream_on(&app->cam);
 
     app->is_opened = gpio_monitor_pin_value(&app->fd_gpio, app->gpio_button, O_RDONLY);
 
     if (app->is_opened == 0) {
-        while (keep_running) // soon I'll change it, but now we have what we have
+
+        struct pollfd gpio_poll; // I'll implement that part in another place soon
+        memset(&gpio_poll, 0, sizeof(struct pollfd));
+        gpio_poll.fd = app->fd_gpio;
+        gpio_poll.events = POLLPRI;
+        gpio_poll.revents = 0;
+
+        struct sockaddr_un addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sun_family = AF_UNIX;
+        strncpy(addr.sun_path, SOCK_PATH, sizeof(addr.sun_path) - 1);
+        
+        while (keep_running)
         {
-            if (gpio_read(&app->fd_gpio, app->gpio_button) == 0)
+            if (app->client_fd < 0)
             {
-                create_timestamp_name(app->output_filename);
-                if (camera_capture_frame(&app->cam, app->output_filename) < 0)
+                app->client_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+                if (app->client_fd < 0)
                 {
-                    fprintf(stderr, "failed to capture frame\n"); // continue anyway...
-                    return 1;
+                    printf("Failed to create socket: %m\n");
                 }
-                
+
+                if (connect(app->client_fd, &addr, sizeof(addr)) < 0)
+                {
+                    printf("Connection failed: %m\n");
+                    close(app->client_fd);
+                } else {
+                    connected = 1;
+                }
             }
-            usleep(20000);
+            
+
+            int ready = poll(&gpio_poll, 1, 1000);
+            
+            if (ready < 0)
+            {
+                printf("An error occured: %m\n");
+            }
+            else if (gpio_poll.revents & POLLPRI)
+            {
+
+                flag = !gpio_read(&app->fd_gpio, app->gpio_button);
+
+                if (flag)
+                {
+                    create_timestamp_name(app->output_filename);
+                    if (camera_capture_frame(&app->cam, app->output_filename) < 0)
+                    {
+                        fprintf(stderr, "failed to capture frame\n"); // continue anyway...
+                        return 1;
+                    }
+                    if (connected)
+                    {
+                        if (write(app->client_fd, app->output_filename, sizeof(app->output_filename)) == -1) {
+                            printf("Write failed: %m\n");
+                        }
+                        else {
+                            printf("Message sent successfully!\n");
+                        }
+                    }
+                }
+                else {
+                    printf("Flag is incorrect\n");
+                }
+            }
         }
     }
     else {
@@ -255,6 +300,7 @@ int app_run_camera_stream(application * app){
 
     result = 0;
 end:
+    app->client_fd = -1;
     camera_stream_off(&app->cam);
     return result;
 }

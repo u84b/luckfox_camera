@@ -9,6 +9,7 @@ int write_str(const char * path, const char *s);
 int gpio_export(int gpio);
 int gpio_unexport(int gpio);
 int gpio_direction(int gpio, char  const * dir);
+int gpio_edge(int gpio);
 int gpio_open(int * const fd_ptr, char * const path, int oflag);
 int gpio_monitor_pin_value(int * const fd_ptr, int gpio, int oflag);
 int gpio_write(int gpio, char * const data);

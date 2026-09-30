@@ -2,6 +2,10 @@
 #include "../gpio/gpio_manager.h"
 #include "../json/config.h"
 #include <signal.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#define SOCK_PATH "/tmp/local.sock"
 
 /*
 
@@ -16,6 +20,7 @@ typedef struct {
     char device[32];
     int gpio_button;
     int fd_gpio;
+    int client_fd;
     int is_opened;
 } application;
 
@@ -29,4 +34,5 @@ int app_camera_init_from_config(camera * const c, camera_config * const config);
 int app_camera_config_default(application *app); // using when it's impossible to use .json config
 int app_prepare_camera_buffers(application *app); // query-->mmap-->queue
 int app_run_camera_stream(application *app); // stream on-->running--> stream off in case of failure or interruption
+int app_receive_msg(char *message);
 int app_cleanup(application *app); // you know :)

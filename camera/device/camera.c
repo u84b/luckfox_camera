@@ -372,8 +372,7 @@ int camera_stream_on(camera * const c){
 
     return 0;
 }
-// @TODO: determine which way of function termination/error handling is better
-// @TODO: optimize it including main.c context (while-loop)
+
 int camera_capture_frame(camera * const c, const char * const output){
     struct v4l2_plane planes[PLANE_COUNT];
     struct v4l2_buffer buf;

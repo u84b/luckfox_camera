@@ -3,8 +3,9 @@
 
 
 
-int main(){  
-
+int main(int argc, char* argv[]){  
+    int load_flag = 0;
+    const char *config_path;
 // settings: (it's just like building a house)
     application app; // the most important structure, it contains almost everything...
     puts("Application init");
@@ -17,26 +18,36 @@ int main(){
     puts("Camera configuration");
     camera_config cfg;
     //memset(&cfg, 0, sizeof(cfg));
-    const char *config_path = "/userdata/config.json";
-    puts("Load config from JSON");
-    if (load_config_from_json(config_path, &cfg) < 0) {
-        fprintf(stderr, "failed to load camera config from json\n");
-        if (app_camera_config_default(&app) < 0){ 
-            puts("Default configuration");
-            fprintf(stderr, "application config failed: %s\n", strerror(errno));    
-            return -1;
-        }
-    }
-    puts("Camera init from config");
-    if (app_camera_init_from_config(&app.cam, &cfg) < 0)
+
+    if (argc == 2)
     {
-        fprintf(stderr, "failed to init camera from config");
-        if (app_camera_config_default(&app) < 0){ 
-            puts("Camera init default");
-            fprintf(stderr, "application config failed: %s\n", strerror(errno));    
-            return -1;
+        config_path = argv[1];
+    }
+    else {
+        config_path = "/userdata/config.json";
+    }
+    
+    puts("Load config from JSON");
+    
+    if (load_config_from_json(config_path, &cfg) == 1) {
+
+        if (app_camera_init_from_config(&app.cam, &cfg) < 0)
+        {
+            load_flag = 1;
+            puts("Camera init from config");
         }
     }
+    if (!load_flag) {
+        if (app_camera_config_default(&app) < 0)
+        {
+            puts("Camera init default");
+            fprintf(stderr, "application config failed: %s\n", strerror(errno));
+            return -1; 
+        }
+        
+    }
+    
+
 // prepare: (it's just like intention to do something with this house)
     if (app_prepare_camera_buffers(&app) < 0)
     {

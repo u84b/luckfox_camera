@@ -16,7 +16,7 @@ int gpio_check_if_null(const void *ptr, const char *name){
 }
 
 int write_str(const char *path, const char *s) {
-    int fd = open(path, O_WRONLY | O_CLOEXEC);
+    int fd = open(path, O_WRONLY); //| O_CLOEXEC);
     if (fd < 0) {
         fprintf(stderr, "failed opening file %s : %s\n", path, strerror(errno));
         return -1;
@@ -99,6 +99,28 @@ int gpio_direction(int gpio, char const * dir){
         return -1;
     }
 
+    return 0;
+}
+
+int gpio_edge(int gpio){
+    char buf[64];
+    int written = snprintf(buf, sizeof(buf), "/sys/class/gpio/gpio%d/edge", gpio);
+    if (written < 0 || (size_t)written >= sizeof(buf))
+    {
+        return -1;
+    }
+
+    if (write_str(buf, "falling") < 0)
+    {
+        if (errno = ENOENT)
+        {
+            return 0;
+        }
+        return -1;
+        
+    }
+    
+    
     return 0;
 }
 
@@ -188,10 +210,18 @@ int gpio_configuration(int gpio_pin_num){
         printf("gpio%d export failed\n", gpio_pin_num);
         goto end;
     }
+    
     if (gpio_direction(gpio_pin_num, "in") < 0) {
         printf("gpio%d setting direction failed\n", gpio_pin_num);
         goto end;
     }
+
+    if (gpio_edge(gpio_pin_num) < 0)
+    {
+        printf("gpio%d setting edge failed\n", gpio_pin_num);
+        goto end;
+    }
+    
     
     result = 0;
 end:
