@@ -51,14 +51,14 @@ namespace server {
         {
             std::cerr << "Bind failed\n";
             close(server_fd);
-            return false;
+            return result;
         }
         // LISTEN FOR NEW CLIENTS :)
         if (listen(server_fd, 1) < -1)
         {
             std::cerr << "Listen failed\n";
             close(server_fd);
-            return false;
+            return result;
         }
 
         
@@ -128,6 +128,8 @@ namespace server {
         {
             close(server_fd);
         }
+
+        result = true;
         
 
         return result;

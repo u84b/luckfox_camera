@@ -2,13 +2,13 @@
 #define CAMERA_H
 
 #include "v4l2_utils.h"
+#include "../app/options.h"
 
 #include <bits/types.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <poll.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,15 +24,7 @@
 #define SKIP_FRAMES  9
 #define FRAMES_COUNT 10
 
-enum {
-    FLAG_DEBUG = 0,
-    FLAG_LOG = 1,
-    FLAG_ERR = 2
-};
 
-#define MASK_DEBUG (1U << FLAG_DEBUG)
-#define MASK_LOG (1U << FLAG_LOG)
-#define MASK_ERR (1U << FLAG_ERR)
 
 struct buffer {
     void *addr[PLANE_COUNT];

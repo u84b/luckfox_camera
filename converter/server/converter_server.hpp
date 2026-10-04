@@ -8,6 +8,8 @@
 
 #define SOCK_PATH "/tmp/local.sock"
 
+
+// UNUSED IN main.cpp NOW
 namespace server {
 
     // typedef struct {

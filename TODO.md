@@ -10,11 +10,14 @@
 3. state machine logic for application in main.c based on app.c functions 
    +config path in argv
 
-4. lightweight C++ daemon for converting .raw images to .png
-   (lightweight sounds ridiculous considering I use OpenCV now, but I'll come up with something)
+4. **lightweight C++ daemon for converting .raw images to .png
+   (lightweight sounds ridiculous considering I use OpenCV now, but I'll come up with something)**
 
-5. IPC between camera daemon and converter daemon
-   the camera will tell the converter the name of the new file (path)
+5. **IPC between camera daemon and converter daemon
+   the camera will tell the converter the name of the new file (path)**
 
 6. A utility for creating a custom configuration for a camera
-   
+
+
+### NOTE:
+### bold text is current tasks

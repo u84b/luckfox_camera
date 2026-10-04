@@ -1,10 +1,13 @@
-#include <converter_server.hpp>
+#include "converter_server.hpp"
 
 
 volatile static std::sig_atomic_t keep_running = 1;
 
 extern "C" void handle_signal(int signum){
-    keep_running = 0;
+    if (signum == SIGTERM || signum == SIGINT)
+    {
+        keep_running = 0;
+    }
 }
 
 // CURRENT STATE: PROTOTYPE DEVELOPING

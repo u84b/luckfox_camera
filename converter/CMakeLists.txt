@@ -21,6 +21,14 @@ if(NOT DEFINED SOURCE)
 endif()
 
 add_executable(converter ${SOURCE})
+target_sources(converter PRIVATE 
+    files/file_utils.cpp
+    files/file_utils.hpp
+    imageu/image_utils.cpp
+    imageu/image_utils.hpp
+    server/converter_server.cpp
+    server/converter_server.hpp
+    )
 
 target_compile_options(converter PUBLIC -O3 -Wall -Wextra -Wl,--gc-sections)
 

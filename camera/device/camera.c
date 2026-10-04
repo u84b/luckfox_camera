@@ -55,7 +55,7 @@ int save_frame(camera * const c,
             goto end;
         }
     
-        if (c->OPTIONS_MASK & MASK_DEBUG) printf("Plane %u: %u bytes\n", p, planes[p].bytesused);
+        if (OPTIONS_MASK & MASK_DEBUG) printf("Plane %u: %u bytes\n", p, planes[p].bytesused);
     
     }
 
@@ -64,7 +64,7 @@ int save_frame(camera * const c,
             goto end;
         }
         result = 0;
-        if (c->OPTIONS_MASK & 1) printf("Frame saved to %s\n", filename);
+        if (OPTIONS_MASK & 1) printf("Frame saved to %s\n", filename);
 end:
         return result;
 }
@@ -114,7 +114,7 @@ int camera_init(camera * const c){ //camera init start
     //c->result = EXIT_FAILURE;
     c->buffer_count = 0;
     c->plane_count = 0;
-    c->OPTIONS_MASK |= MASK_DEBUG;
+    //OPTIONS_MASK |= MASK_DEBUG;
 
 
     memset(&c->cap, 0, sizeof(c->cap));
@@ -194,7 +194,7 @@ int camera_check_capabilities(camera * const c){
     /*              
     ===============DEBUG INFO================
     */
-    if (c->OPTIONS_MASK & MASK_DEBUG) {
+    if (OPTIONS_MASK & MASK_DEBUG) {
         printf("Driver: %s\n", c->cap.driver);
         printf("Card:   %s\n", c->cap.card);
         printf("Bus:    %s\n", c->cap.bus_info);
@@ -242,7 +242,7 @@ int camera_set_format(camera * const c, camera_format c_format){
         goto end;
     }
 
-    if (c->OPTIONS_MASK & MASK_DEBUG) {
+    if (OPTIONS_MASK & MASK_DEBUG) {
         printf(
             "Format: %c%c%c%c\n",
             c->format.format.fmt.pix_mp.pixelformat & 0xff,
