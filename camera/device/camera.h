@@ -43,12 +43,7 @@ typedef struct {
     char device_path[32];
     camera_format format;
     camera_buffer_config buf_cfg;
-//    uint32_t width;
-//    uint32_t height;
-//    uint32_t memory_type;
-//    uint32_t pixel_format;
-//    uint32_t field;
-//    uint32_t buffer_count;
+
 } camera_config;
 
 typedef struct {

@@ -10,5 +10,5 @@ echo Using: ${CC}
 output="$BIN_DIR/camera"
 mkdir -p "$(dirname "$output")"
 
-${CC} -O2 -Wall main.c ./app/app.c ./device/camera.c ./device/v4l2_utils.c ./gpio/gpio_manager.c ./json/config.c ./json/lib/cJSON.c ./json/lib/cJSON_Utils.c -o "$output"
+${CC} -O2 -Wall -Wextra -Wl,--gc-sections main.c ./app/*.c ./device/*.c ./gpio/*.c ./json/*.c ./json/lib/*.c -o "$output"
 adb push "$output" /oem

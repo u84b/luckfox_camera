@@ -1,12 +1,14 @@
 #include "app.h"
-#include <stdio.h>
-#include <string.h>
 #include <time.h>
+
+// small optimization hints for compiler
+#define __likely(condition) __builtin_expect(!!(condition), 1)
+#define __unlikely(condition) __builtint_expect(!!(condition), 0)
 
 #define APP_C_PADDING 4
 #define APP_C_STREAM_PADDING 6
 
-volatile static sig_atomic_t keep_running = 1;
+static volatile sig_atomic_t keep_running = 1;
 
 void handle_termination(int signum){
     if (signum == SIGTERM || signum == SIGINT){ // it was obvious but I haven't changed it till now
@@ -14,7 +16,22 @@ void handle_termination(int signum){
     }
 }
 
+// @TODO: read option flags from JSON
+void set_options(){
+
+    OPTIONS_MASK |= DEBUG_MODE;
+    OPTIONS_MASK |= DEBUG_CAMERA_STREAM;
+    OPTIONS_MASK |= IPC_REQUIRED;
+
+}
+
 int create_timestamp_name(char * const filename){
+
+    if (OPTIONS_MASK & DEBUG_MODE)
+    {
+        printf("    %*s\n", APP_C_PADDING, "!create_timestamp_name called");
+    }
+
     struct tm *info = NULL;
     time_t raw_time = 0;
 
@@ -34,22 +51,39 @@ int create_timestamp_name(char * const filename){
 
 int init_application(application *app){
 
+    if (OPTIONS_MASK & DEBUG_MODE)
+    {
+        printf("    %*s\n", APP_C_PADDING, "init_application called");
+    }
+
     signal(SIGTERM, handle_termination);
     signal(SIGINT, handle_termination);
     
     memset(&app->cam, 0, sizeof(app->cam));
+    memset(&app->client, 0, sizeof(app->client));
 
     app->gpio_button = 54;
     app->fd_gpio = -1;
-    app->client_fd = -1;
+    // app->client.client_fd = -1;
+    // app->client.connected = 0;
     app->is_opened = -1;
+
+    if (__likely(OPTIONS_MASK & IPC_REQUIRED))
+    {
+        client_init(&app->client, SOCK_PATH, 0);
+    }
 
 
     return 0;
 }
 
 int load_config_from_json(const char * const config_path, camera_config * cfg){
-    //puts("LOAD_CONFIG_FROM_JSON");
+
+    if (OPTIONS_MASK & DEBUG_MODE)
+    {
+        printf("    %*s\n", APP_C_PADDING, "!load_config_from_json called");
+    }
+
     if (config_path == NULL) return 1; // okay, not fatal, because we can use default configuration
 
     if (cfg == NULL) return -1;
@@ -66,7 +100,7 @@ int load_config_from_json(const char * const config_path, camera_config * cfg){
     json_tree = parse_file(config_path);
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "json file parsed");
+        printf("    %*s\n", APP_C_PADDING, "JSON file parsed");
     }
 
     if (json_tree == NULL)
@@ -80,14 +114,14 @@ int load_config_from_json(const char * const config_path, camera_config * cfg){
     
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "Got camera params JSON object");
+        printf("    %*s\n", APP_C_PADDING, "Got camera params JSON object");
     }
 
     buf = cJSON_GetObjectItem(camera_params, "device_path")->valuestring;
     
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s%s\n", APP_C_PADDING, "Device path: ", buf);
+        printf("    %*s%s\n", APP_C_PADDING, "Device path: ", buf);
     }
     
     int written = snprintf(cfg->device_path, sizeof(cfg->device_path), "%s", buf);
@@ -106,16 +140,16 @@ int load_config_from_json(const char * const config_path, camera_config * cfg){
 
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "Camera format/buffer setting completed");
+        printf("    %*s\n", APP_C_PADDING, "Camera format/buffer setting completed");
     }
 
-    if (json_tree != NULL)
+    if (json_tree     != NULL)
     {
         
         cJSON_Delete(json_tree);
         if (OPTIONS_MASK & DEBUG_MODE)
         {
-            printf("%*s\n", APP_C_PADDING, "cJSON tree object deletion completed");
+            printf("    %*s\n", APP_C_PADDING, "cJSON tree object deletion completed");
         }
 
     }
@@ -125,6 +159,12 @@ end:
 }
 
 int app_camera_init_from_config(camera * const c, camera_config * const config){
+
+    if (OPTIONS_MASK & DEBUG_MODE)
+    {
+        printf("    %*s\n", APP_C_PADDING, "!app_camera_init_from_config called");
+    }
+
     if (c == NULL)
     {
         return -1;
@@ -142,7 +182,7 @@ int app_camera_init_from_config(camera * const c, camera_config * const config){
 
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "Camera init successfully");
+        printf("    %*s\n", APP_C_PADDING, "Camera init successfully");
     }
     
     if (camera_open_video_interface(c, config->device_path) < 0) {
@@ -152,7 +192,7 @@ int app_camera_init_from_config(camera * const c, camera_config * const config){
     
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "V4L2 video node opened");
+        printf("    %*s\n", APP_C_PADDING, "V4L2 video node opened");
     }
     
     if (camera_check_capabilities(c) < 0) {
@@ -162,7 +202,7 @@ int app_camera_init_from_config(camera * const c, camera_config * const config){
 
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "V4L2 capabilities okay");
+        printf("    %*s\n", APP_C_PADDING, "V4L2 capabilities okay");
     }
     
     camera_set_type(c, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
@@ -181,7 +221,7 @@ int app_camera_init_from_config(camera * const c, camera_config * const config){
 
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "Camera set buffer config completed");
+        printf("    %*s\n", APP_C_PADDING, "Camera set buffer config completed");
     }
     
 
@@ -190,6 +230,11 @@ int app_camera_init_from_config(camera * const c, camera_config * const config){
 
 
 int app_camera_config_default(application *app){
+
+    if (OPTIONS_MASK & DEBUG_MODE)
+    {
+        printf("    %*s\n", APP_C_PADDING, "!app_camera_config_default called");
+    }
 
     if (app == NULL) return -1;
 
@@ -212,7 +257,7 @@ int app_camera_config_default(application *app){
 
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "Camera init successfully");
+        printf("    %*s\n", APP_C_PADDING, "Camera init successfully");
     }
 
     if (camera_open_video_interface(&app->cam, video_node) < 0) {
@@ -222,7 +267,7 @@ int app_camera_config_default(application *app){
 
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "V4L2 video node opened");
+        printf("    %*s\n", APP_C_PADDING, "V4L2 video node opened");
     }
 
     if (camera_check_capabilities(&app->cam) < 0) {
@@ -232,7 +277,7 @@ int app_camera_config_default(application *app){
 
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "V4L2 capabilities okay");
+        printf("    %*s\n", APP_C_PADDING, "V4L2 capabilities okay");
     }
 
     camera_set_type(&app->cam, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE); // setting type for future tasks related to buffer and &app->format configuration
@@ -258,7 +303,7 @@ int app_camera_config_default(application *app){
 
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "Camera set buffer config completed");
+        printf("    %*s\n", APP_C_PADDING, "Camera set buffer config completed");
     }
 
     result = 0;
@@ -270,6 +315,12 @@ end:
 // @TODO: implement GPIO poll & IPC functions in another place to use it here
 // @TODO: create fundamental functions for wireless communication
 int app_prepare_camera_buffers(application * app){
+
+    if (OPTIONS_MASK & DEBUG_MODE)
+    {
+        printf("    %*s\n", APP_C_PADDING, "!app_prepare_camera_buffers called");
+    }
+
     int result = -1;
 
     if (app == NULL) goto end;
@@ -281,7 +332,7 @@ int app_prepare_camera_buffers(application * app){
 
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "Mapping camera buffers completed");
+        printf("    %*s\n", APP_C_PADDING, "Mapping camera buffers completed");
     }
     
     if (camera_queue_buffers(&app->cam) < 0) {
@@ -291,7 +342,7 @@ int app_prepare_camera_buffers(application * app){
 
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_PADDING, "Queue camera buffers completed");
+        printf("    %*s\n", APP_C_PADDING, "Queue camera buffers completed");
     }
 
     result = 0;
@@ -301,72 +352,55 @@ end:
 
 int app_run_camera_stream(application * app){
 
+    if (OPTIONS_MASK & DEBUG_MODE)
+    {
+        printf("    %*s\n", APP_C_PADDING, "!app_run_camera_stream called");
+    }
+
     int result = -1;
     int flag = 0;
-    int connected = 0;
+    //int connected = 0; // !!! network param
     camera_stream_on(&app->cam);
 
     // it mostly happens because I didn't connect camera to board
     if (app->cam.stream_started != 1)
     {
         printf("Camera stream on failed: %m\n");
+        printf("Checking socket connection: FD=%d\n", app->client.client_fd[0]);
+        printf("Check socket path: PATH=%s\n", app->client.addr->sun_path);
         goto end;
     }
     
     
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_STREAM_PADDING, "Camera stream on");
+        printf("    %*s\n", APP_C_STREAM_PADDING, "Camera stream on");
     }
 
     app->is_opened = gpio_monitor_pin_value(&app->fd_gpio, app->gpio_button, O_RDONLY);
     
     if (OPTIONS_MASK & DEBUG_MODE)
     {
-        printf("%*s\n", APP_C_STREAM_PADDING, "GPIO value monitoring started");
+        printf("    %*s\n", APP_C_STREAM_PADDING, "GPIO value monitoring started");
     }
     
     if (app->is_opened == 0) {
 
+        // GPIO poll part
         struct pollfd gpio_poll; // I'll implement that part in another place soon
         memset(&gpio_poll, 0, sizeof(struct pollfd));
         gpio_poll.fd = app->fd_gpio;
         gpio_poll.events = POLLPRI;
         gpio_poll.revents = 0;
-
-        struct sockaddr_un addr;
-        memset(&addr, 0, sizeof(addr));
-        addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, SOCK_PATH, sizeof(addr.sun_path) - 1);
-
-        if (OPTIONS_MASK & DEBUG_MODE)
-        {
-            printf("%*s\n", APP_C_PADDING, "Socket setting completed");
-        }
         
         while (keep_running)
         {
-            if (app->client_fd < 0)
-            {
-                app->client_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-                if (app->client_fd < 0)
-                {
-                    printf("Failed to create socket: %m\n");
-                }
-
-                if (connect(app->client_fd, (struct sockaddr*) &addr, sizeof(addr)) < 0)
-                {
-                    printf("Connection failed: %m\n");
-                    close(app->client_fd);
-                } else {
-                    connected = 1;
-                    if (OPTIONS_MASK & DEBUG_CAMERA_STREAM)
-                    {
-                        printf("%*s\n", APP_C_STREAM_PADDING, "stream: successfully connected to server");
-                    }
-                }
+            if (client_check_connection(&app->client, 0) < 0){
+                printf("client_check_connection: failed connection to server\n");
             }
-            
+            else {
+                printf("        %*s\n", APP_C_STREAM_PADDING, "stream: successfully connected to server");
+            }
 
             int ready = poll(&gpio_poll, 1, 1000);
             
@@ -385,7 +419,7 @@ int app_run_camera_stream(application * app){
                     
                     if (create_timestamp_name(app->output_filename) == -1){
                         printf("failed creating timestamp name\n");
-                        int written = snprintf(app->output_filename, 64, "/oem/img/new_frame.raw");
+                        uint32_t written = snprintf(app->output_filename, 64, "/oem/img/new_frame.raw");
                         if (written < sizeof(app->output_filename))
                         {
                             puts("failed setting default name");
@@ -396,7 +430,7 @@ int app_run_camera_stream(application * app){
 
                     if (OPTIONS_MASK & DEBUG_CAMERA_STREAM)
                     {
-                        printf("%*s\n", APP_C_STREAM_PADDING, "stream: created timestamp name");
+                        printf("        %*s\n", APP_C_STREAM_PADDING, "stream: created timestamp name");
 
                     }
                     
@@ -409,24 +443,19 @@ int app_run_camera_stream(application * app){
 
                     if (DEBUG_MODE & DEBUG_CAMERA_STREAM)
                     {
-                        printf("%*s\n", APP_C_STREAM_PADDING, "stream: camera capture frame done");
+                        printf("        %*s\n", APP_C_STREAM_PADDING, "stream: camera capture frame done");
                     }
                     
                     
-
-                    if (connected)
-                    {
-                        if (write(app->client_fd, app->output_filename, sizeof(app->output_filename)) == -1) {
-                            printf("Write failed: %m\n");
-                        }
-                        else {
-                            printf("Message sent successfully!\n");
-                        }
+                    // !!! network part (send)
+                    if (client_write(&app->client, app->output_filename, 0) < 0){
+                        printf("client_write: failed to send bytes: %m\n");
                     }
 
+                    // !!! network part (debug)
                     if (DEBUG_MODE & DEBUG_CAMERA_STREAM)
                     {
-                        printf("%*s\n", APP_C_STREAM_PADDING, "stream: message sent to the server successfully");
+                        printf("        %*s\n", APP_C_STREAM_PADDING, "stream: message sent to the server successfully");
                     }
                 }
             }
@@ -438,12 +467,19 @@ int app_run_camera_stream(application * app){
 
     result = 0;
 end:
-    app->client_fd = -1;
+    
+    //app->client_fd = -1; // network part
     camera_stream_off(&app->cam);
     return result;
 }
 
 int app_cleanup(application * app) {    
+
+    if (OPTIONS_MASK & DEBUG_MODE)
+    {
+        printf("    %*s\n", APP_C_PADDING, "!app_cleanup called");
+    }
+
     if (app == NULL)
     {
         return -1;

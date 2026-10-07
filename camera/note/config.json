@@ -1,4 +1,8 @@
 {
+    "options" : {
+        "DEBUG_MODE" : 1
+    },
+
     "filesystem" : {
         
         "outputFileBase" : "/userdata/img/frame"

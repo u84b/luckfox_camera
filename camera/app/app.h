@@ -1,9 +1,8 @@
 #include "../device/camera.h"
 #include "../gpio/gpio_manager.h"
 #include "../json/config.h"
+#include "client.h"
 #include <signal.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 
 #define SOCK_PATH "/tmp/local.sock"
 
@@ -15,19 +14,16 @@
 
 typedef struct {
     camera cam;
+    app_client client;
     char output_filename[64];
-    // char config_path[32]; hardcoded now but in future it will be console arg
     char device[32];
     int gpio_button;
     int fd_gpio;
-    int client_fd;
     int is_opened;
 } application;
 
-typedef struct {
 
-} application_client;
-
+void set_options();
 int init_application(application *app); // just reset the application structure
 int load_config_from_json(const char * const config_path, camera_config * cfg); // trying to load config from .json
 int app_camera_init_from_config(camera * const c, camera_config * const config); // configure camera from config

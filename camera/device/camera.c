@@ -1,5 +1,4 @@
 #include "camera.h"
-#include <string.h>
 
 /*
 
@@ -265,6 +264,13 @@ end:
     return result;
 }   
 
+
+/*
+
+current point
+
+*/
+
 int camera_set_buffer_config(camera * const c, camera_buffer_config buf_cfg){
     int result = -1;
     
@@ -273,7 +279,7 @@ int camera_set_buffer_config(camera * const c, camera_buffer_config buf_cfg){
     buf_cfg.buf_config.type = c->type;
     c->cfg = buf_cfg;
     
-
+    // REQBUFS
     if (v4l2_request_buffers(c->fd, &c->cfg.buf_config) < 0){
         goto end;
     }
@@ -316,7 +322,7 @@ int camera_map_buffers(camera * const c){
             return -1;
         }
 
-        for (int p = 0; p < c->plane_count; p++) {
+        for (uint32_t p = 0; p < c->plane_count; p++) {
             c->buffers[i].length[p] = planes[p].length;
             
             /*
