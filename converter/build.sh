@@ -16,3 +16,4 @@ cmake -S . -B "$BUILD_DIR" -DSOURCE="$SOURCE"
 cmake --build "$BUILD_DIR"
 
 mv "$BUILD_DIR/converter" "$BUILD_DIR/$NAME"
+adb push ./build/main/main /oem

@@ -450,13 +450,18 @@ int app_run_camera_stream(application * app){
                     // !!! network part (send)
                     if (client_write(&app->client, app->output_filename, 0) < 0){
                         printf("client_write: failed to send bytes: %m\n");
+
+                        
+                    }
+                    else {
+                        if (DEBUG_MODE & DEBUG_CAMERA_STREAM)
+                        {
+                            printf("        %*s\n", APP_C_STREAM_PADDING, "stream: message sent to the server successfully");
+                        }
                     }
 
                     // !!! network part (debug)
-                    if (DEBUG_MODE & DEBUG_CAMERA_STREAM)
-                    {
-                        printf("        %*s\n", APP_C_STREAM_PADDING, "stream: message sent to the server successfully");
-                    }
+                    
                 }
             }
         }

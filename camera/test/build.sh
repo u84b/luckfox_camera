@@ -1,19 +1,19 @@
 #!/usr/bin/sh
 
-# set -u
+set -u
 
-# mkdir -p ./bin
+mkdir -p ./bin
 
-# gcc cjson_parse.c ../json/lib/cJSON.c ../json/lib/cJSON_Utils.c -o "./bin/parsed" -lm
-# gcc -Oz -Wl,--gc-sections check_size.c ../json/lib/cJSON.c ../json/lib/cJSON_Utils.c ../device/camera.c ../device/v4l2_utils.c -o "./bin/size" -lm
+gcc cjson_parse.c ../json/lib/cJSON.c ../json/lib/cJSON_Utils.c -o "./bin/parsed" -lm
+gcc -Oz -Wl,--gc-sections check_size.c ../json/*.c ../json/lib/*.c ../device/*.c ../app/*.c -o "./bin/size" -lm
 
 
-BIN_DIR="./bin"
-CC="${GCC_COMPILER:-}gcc"
+# BIN_DIR="./bin"
+# CC="${GCC_COMPILER:-}gcc"
 
-echo Using: ${CC}
+# echo Using: ${CC}
 
-output="$BIN_DIR/poll_gpio"
-mkdir -p "$(dirname "$output")"
+# output="$BIN_DIR/poll_gpio"
+# mkdir -p "$(dirname "$output")"
 
-${CC} -O2 -Wall -Wl,--gc-sections poll_gpio_test.c ../gpio/gpio_manager.c ../json/config.c ../json/lib/cJSON.c ../json/lib/cJSON_Utils.c -o "$output"
+# ${CC} -O2 -Wall -Wl,--gc-sections poll_gpio_test.c ../gpio/gpio_manager.c ../json/config.c ../json/lib/cJSON.c ../json/lib/cJSON_Utils.c -o "$output"
