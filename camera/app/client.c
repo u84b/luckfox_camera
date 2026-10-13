@@ -26,13 +26,13 @@ int client_check_connection(app_client * const client, int index){
             printf("Failed to create socket: %m\n");
         }
 
-        if (connect(client->client_fd[0],
-             (struct sockaddr *)&client->addr[0],
+        if (connect(client->client_fd[index],
+             (struct sockaddr *)&client->addr[index],
               sizeof(client->addr)) < 0)
         {
             printf("Failed to connect: %m\n");
-            close(client->client_fd[0]);
-        } else client->connected[0] = 1;
+            close(client->client_fd[index]);
+        } else client->connected[index] = 1;
     }
     
     result = 0;

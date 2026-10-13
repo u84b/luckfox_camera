@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <stdio.h>
@@ -9,8 +10,11 @@
 
 typedef struct {
     struct sockaddr_un addr[CONNECTIONS_COUNT];
+    struct sockaddr_in net_addr[CONNECTIONS_COUNT];
     int client_fd[CONNECTIONS_COUNT];
+    int server_fd[CONNECTIONS_COUNT];
     unsigned short int connected[CONNECTIONS_COUNT]; // for better padding of the structure
+    unsigned short int net_connected[CONNECTIONS_COUNT];
 } app_client;
 
 
@@ -23,4 +27,5 @@ int client_write(app_client * const client, char *bytes, int index);
 
 int net_client_init(app_client * const client, char * hostname, int index);
 int net_client_config(app_client * const client, int index);
-int net_client_check_connection();
+int net_client_check_connection(app_client * const client, int index);
+int net_client_write(app_client * const client, char * bytes, int index);

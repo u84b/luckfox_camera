@@ -6,6 +6,8 @@
 
 #define PORT 8080
 
+
+
 int main(void)
 {
     int sock_fd;
@@ -21,7 +23,7 @@ int main(void)
 
     inet_pton(
         AF_INET,
-        "xxx.xxx.xxx.xxx", // wlan0 ipv4
+        "192.168.0.142", // wlan0 ipv4
         &server_address.sin_addr
     );
 
