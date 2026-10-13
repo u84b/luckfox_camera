@@ -12,7 +12,6 @@
 #define SOCK_PATH "/tmp/local.sock"
 
 
-// UNUSED IN main.cpp NOW
 namespace server {
 
     extern std::string current;

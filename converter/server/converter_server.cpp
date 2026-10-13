@@ -1,8 +1,6 @@
 #include "converter_server.hpp"
 
 
-// CURRENT STATE: PROTOTYPE DEVELOPING
-// @TODO: change implementation for sending data(image info) to converter
 namespace server {
     
     std::string current = "frame.raw";
