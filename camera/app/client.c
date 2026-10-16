@@ -65,3 +65,41 @@ int client_write(app_client * client, char * bytes, int index){
 end:
     return result;
 }
+
+int client_close(app_client * const client, int index) {
+
+    if (client != NULL)
+    {
+        if (client->client_fd[index] != -1)
+        {
+            close(client->client_fd[index]);
+            client->client_fd[index] = -1;
+        }
+
+        if (client->server_fd[index] != -1)
+        {
+            close(client->server_fd[index]);
+            client->server_fd[index] = -1;
+        }
+        
+    }
+
+    
+
+    return 0;
+}
+
+int net_client_close(app_client * const client, int index) {
+
+    if (client != NULL)
+    {
+        if (client->server_fd[index] != -1)
+        {
+            close(client->server_fd[index]);
+            client->server_fd[index] = -1;
+        }
+        
+    }
+
+    return 0;
+}

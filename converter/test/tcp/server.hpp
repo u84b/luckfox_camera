@@ -7,12 +7,12 @@
 #include <csignal>
 #include <arpa/inet.h>
 #include <functional>
-#include "../../imageu/image_utils.hpp"
-#include "../../files/file_utils.hpp"
+// #include "../../imageu/image_utils.hpp"
+// #include "../../files/file_utils.hpp"
 
 #define SOCK_PATH "/tmp/local.sock"
 #define PORT 8080
-#define IP_ADDR "xxx.xxx.xxx.xxx"
+#define IP_ADDR "192.168.0.142"
 
 // just copy-paste for future
 namespace server {

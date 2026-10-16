@@ -15,5 +15,5 @@ echo Using:${CXX}
 # BUILD_DIR1="tcp/build/$NAME1"
 
 g++ -g -O2 -Wall -Wextra -march=native -flto server.cpp -o server
-${CXX} -O2 -Wall -Wextra -flto client.cpp -o client
-adb push client /oem
+# ${CXX} -O2 -Wall -Wextra -flto client.cpp -o client
+# adb push client /oem

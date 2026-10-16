@@ -1,294 +1,116 @@
-#include <arpa/inet.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <iostream>
 #include "server.hpp"
+#include <arpa/inet.h>
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include <cerrno>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
-#define PORT 8080
+static volatile sig_atomic_t keep_running = 1;
 
-namespace server {
-
-    std::string current = "frame.raw";
-    std::string converted = "frame.png";
-    int width = 640;
-    int height = 480;
-
-    bool init(cserver * srv){
-        bool result = false;
-
-        srv->server_fd = -1;
-        srv->client_fd = -1;
-        srv->length = sizeof(srv->cli_addr);
-
-        std::memset(&srv->addr, 0, sizeof(srv->addr));
-        std::memset(&srv->cli_addr, 0, sizeof(srv->cli_addr));
-        std::memset(&srv->cpoll, 0, sizeof(srv->cpoll));
-
-        srv->server_fd = socket(AF_INET, SOCK_STREAM, 0);
-
-        if (srv->server_fd == -1)
-        {
-            std::cerr << "Socket creation failed: " << strerror(errno) << std::endl;
-            return result;
-        }
-
-        int opt = 1;
-
-        // задаём флаги для сокета
-        if (setsockopt(srv->server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
-        {
-            std::cerr << "setsockopt failed: " << strerror(errno) << std::endl;
-            close(srv->server_fd);
-            srv->server_fd = -1;
-            return result;
-        }
-
-        srv->addr.sin_family = AF_INET;
-        srv->addr.sin_port = htons(PORT);
-
-        // преобразуем строковое представление IP адреса в понятный компьютеру вид
-        if (inet_pton(AF_INET, IP_ADDR, &srv->addr.sin_addr) != 1)
-        {
-            std::cerr << "Invalid IP_ADDR: " << IP_ADDR << std::endl;
-            close(srv->server_fd);
-            srv->server_fd = -1;
-            return result;
-        }
-
-        // связываем сокет с конкретным адресом
-        if (bind(srv->server_fd, (struct sockaddr*)&srv->addr, sizeof(srv->addr)) == -1)
-        {
-            std::cerr << "bind failed: " << strerror(errno) << std::endl;
-            close(srv->server_fd);
-            srv->server_fd = -1;
-            return result;
-        }
-
-        std::cout << "bind successful" << std::endl;
-        
-        // ожидаем входящие подключения
-        
-        if (listen(srv->server_fd, 2) == -1)
-        {
-            std::cerr << "listen failed: " << strerror(errno) << std::endl;
-            close(srv->server_fd);
-            srv->server_fd = -1;
-            return result;
-        }
-
-        std::cout << "listened" << std::endl;
-
-        result = true;
-        return result;
+extern "C" void handle_signal(int signum) {
+    if (signum == SIGTERM || signum == SIGINT)
+    {
+        keep_running = 0;
     }
-
-    bool check_connection(cserver * srv){
-        bool result = false;
-
-        if (srv->client_fd == -1)
-        {
-            std::cout << "Server fd: " << srv->server_fd
-            << " ; Length: "
-            << srv->length << " ; " << std::endl;
-
-            srv->length = sizeof(srv->cli_addr);
-
-            srv->client_fd = accept(srv->server_fd,
-                (struct sockaddr*)&srv->cli_addr,
-                (socklen_t*)&srv->length);
-
-            if (srv->client_fd == -1)
-            {
-                if (errno != EINTR)
-                {
-                    std::cerr << "client fd accept error: " << strerror(errno) << std::endl;
-                }
-
-                return result;
-            }
-
-            std::cout << "Client FD = " << srv->client_fd << std::endl;
-
-            srv->cpoll.fd = srv->client_fd;
-            srv->cpoll.events = POLLIN;
-            srv->cpoll.revents = 0;
-
-            std::cout << "server connection checked" << std::endl;
-        }
-        else {
-
-            result = true;
-
-        }
-
-        return result;
-    }
-
-    // return --> continue in main while loop
-    bool run(cserver * srv, const std::function<void(cserver *, int)>& func){
-        bool result = false;
-
-        if (srv->client_fd > 0)
-        {
-            int ready = poll(&srv->cpoll, 1, -1);
-
-            if (ready < 0)
-            {
-                if (errno == EINTR)
-                {
-                    return true;
-                }
-
-                std::cerr << "poll failed: " << strerror(errno) << std::endl;
-                return result;
-            }
-
-            if (ready == 0)
-            {
-                return true;
-            }
-
-            if (srv->cpoll.revents & (POLLERR | POLLNVAL))
-            {
-                std::cerr << "Client socket error: " << srv->cpoll.revents << std::endl;
-                close(srv->client_fd);
-                srv->client_fd = -1;
-                std::memset(&srv->cpoll, 0, sizeof(srv->cpoll));
-                return result;
-            }
-
-            if (srv->cpoll.revents & (POLLHUP | POLLRDHUP))
-            {
-                std::cout << "Client FD = " << srv->client_fd << " disconnected" << std::endl;
-                close(srv->client_fd);
-                srv->client_fd = -1;
-                std::memset(&srv->cpoll, 0, sizeof(srv->cpoll));
-                return result;
-            }
-
-            if (srv->cpoll.revents & POLLIN)
-            {
-                std::cout << "revents = " << srv->cpoll.revents << std::endl;
-
-                std::memset(srv->buffer, '\0', sizeof(srv->buffer));
-
-                ssize_t count = read(srv->client_fd, srv->buffer, sizeof(srv->buffer));
-
-                if (count == 0)
-                {
-                    std::cout << "Client FD = " << srv->client_fd << " disconnected" << std::endl;
-                    close(srv->client_fd);
-                    srv->client_fd = -1;
-                    std::memset(&srv->cpoll, 0, sizeof(srv->cpoll));
-                    return result;
-                }
-
-                if (count < 0)
-                {
-                    if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)
-                    {
-                        std::cerr << "read failed: " << strerror(errno) << std::endl;
-                        close(srv->client_fd);
-                        srv->client_fd = -1;
-                        std::memset(&srv->cpoll, 0, sizeof(srv->cpoll));
-                    }
-
-                    return result;
-                }
-
-                func(srv, static_cast<int>(count));
-
-                ssize_t sent = 0;
-
-                while (sent < count)
-                {
-                    ssize_t written = write(srv->client_fd, srv->buffer + sent, count - sent);
-
-                    if (written < 0) // checking for errors during feedback 
-                    {
-                        if (errno == EINTR)
-                        {
-                            continue;
-                        }
-
-                        std::cerr << "Failed feedback for client: " << strerror(errno) << std::endl;
-                        close(srv->client_fd);
-                        srv->client_fd = -1;
-                        std::memset(&srv->cpoll, 0, sizeof(srv->cpoll));
-                        return result;
-                    }
-
-                    if (written == 0) // zero value
-                    {
-                        std::cerr << "Client feedback write returned zero" << std::endl;
-                        close(srv->client_fd);
-                        srv->client_fd = -1;
-                        std::memset(&srv->cpoll, 0, sizeof(srv->cpoll));
-                        return result;
-                    }
-
-                    sent += written;
-                }
-            }
-            else if (srv->cpoll.revents != 0)
-            {
-                std::cerr << "Unexpected poll events: " << srv->cpoll.revents << std::endl;
-                return result;
-            }
-        }
-
-        result = true;
-        return result;
-    }
-
+    
 }
+
 
 
 // I used it for tests
 
-int main(void)
+
+
+
+#define PORT 8080
+
+int main()
 {
-    int server_fd;
-    int client_fd;
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0) {
+        perror("socket");
+        return 1;
+    }
 
-    struct sockaddr_in address;
-    socklen_t address_len = sizeof(address);
+    int reuse = 1;
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
+               &reuse, sizeof(reuse));
 
-    const char *message = "Good morning Vietnam";
-
-    server_fd = socket(AF_INET, SOCK_STREAM, 0);
-
+    sockaddr_in address{};
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_addr.s_addr = htonl(INADDR_ANY);
     address.sin_port = htons(PORT);
 
-    bind(server_fd, (struct sockaddr *)&address, sizeof(address));
-    listen(server_fd, 1);
+    if (bind(server_fd, (sockaddr *)&address,
+             sizeof(address)) < 0) {
+        perror("bind");
+        close(server_fd);
+        return 1;
+    }
+
+    if (listen(server_fd, 1) < 0) {
+        perror("listen");
+        close(server_fd);
+        return 1;
+    }
 
     printf("Waiting for connection on port %d...\n", PORT);
 
-    client_fd = accept(
-        server_fd,
-        (struct sockaddr *)&address,
-        &address_len
-    );
+    sockaddr_in peer{};
+    socklen_t peer_len = sizeof(peer);
 
-    send(client_fd, 
-        message, 
-        strlen(message), 
-        0);
+    int client_fd = accept(
+        server_fd, (sockaddr *)&peer, &peer_len);
 
-    printf("Message sent\n");
+    if (client_fd < 0) {
+        perror("accept");
+        close(server_fd);
+        return 1;
+    }
 
+    std::string pending;
     char buffer[128];
 
-    recv(client_fd, 
-        &buffer, 
-        sizeof(buffer) - 1, 
-        0);
+    while (true) {
+        ssize_t n = recv(client_fd, buffer, sizeof(buffer), 0);
 
-    printf("Received: %s\n", buffer);
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+
+            perror("recv");
+            break;
+        }
+
+        if (n == 0) {
+            printf("Client disconnected\n");
+            break;
+        }
+
+        // Process every byte received. A read may contain
+        // partial messages or multiple complete messages.
+        for (ssize_t i = 0; i < n; ++i) {
+            if (buffer[i] == '\n') {
+                if (!pending.empty() &&
+                    pending.back() == '\r') {
+                    pending.pop_back();
+                }
+
+                printf("Received: %s\n", pending.c_str());
+                pending.clear();
+            } else {
+                pending += buffer[i];
+            }
+        }
+    }
+
+    if (!pending.empty()) {
+        printf("Received unterminated final message: %s\n",
+               pending.c_str());
+    }
 
     close(client_fd);
     close(server_fd);
