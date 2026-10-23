@@ -31,7 +31,7 @@ static int xioctl(
 }
 
 int check_file_descriptor(int fd){
-    if (fd < -1) {
+    if (fd < 0) {
         fprintf(stderr, "Bad file descriptor\n");
         return -1;
     }

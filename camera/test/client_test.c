@@ -6,6 +6,7 @@
 
 #define PORT 8080
 #define ADDR "192.168.0.142"
+#define LOCAL_ADDR "127.0.0.1"
 
 // TCP/IP client test
 
@@ -26,11 +27,15 @@ int net_client_init(app_client * client, char * hostname, int index){
     client->net_addr[index].sin_family = AF_INET;
     client->net_addr[index].sin_port = htons(PORT);
 
+    puts("Ok and");
+
     inet_pton(
         AF_INET,
         hostname,
         &client->net_addr[index].sin_addr
     );
+
+
 
     result = 0;
     return result;
@@ -53,6 +58,32 @@ int net_client_check_connection(app_client * const client, int index){
     
     result = 0;
     return result;
+}
+
+static int send_digit(int fd, const uint32_t * data, size_t length)
+{
+    size_t sent = 0;
+
+    while (sent < length) {
+        ssize_t n = send(fd, data + sent, length - sent, 0);
+
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+
+            perror("send");
+            return -1;
+        }
+
+        if (n == 0) {
+            fprintf(stderr, "Connection closed during send\n");
+            return -1;
+        }
+
+        sent += (size_t)n;
+    }
+
+    return 0;
 }
 
 static int send_all(int fd, const char *data, size_t length)
@@ -81,8 +112,12 @@ static int send_all(int fd, const char *data, size_t length)
     return 0;
 }
 
-int net_client_write(app_client * const client, char * bytes, int index) {
+
+
+int net_client_write_(app_client * const client, char * bytes, int index) {
     int result = -1;
+
+    //char * buf = (char *) bytes;
 
     size_t length = strlen(bytes);
 
@@ -90,6 +125,7 @@ int net_client_write(app_client * const client, char * bytes, int index) {
     if (send_all(client->server_fd[index], bytes, length) < 0)
     {
         printf("failed sending bytes: %m\n");
+        return -1;
     }
     else {
         printf("message sent successfully\n");
@@ -98,7 +134,7 @@ int net_client_write(app_client * const client, char * bytes, int index) {
     if (send_all(client->server_fd[index], "\n", 1) < 0)
     {
         printf("failed sending delimiter: %m\n");
-        result = 0;
+        return -1;
     }
 
     printf("%s\n", bytes);
@@ -107,26 +143,41 @@ int net_client_write(app_client * const client, char * bytes, int index) {
     return result;
 }
 
-uint64_t get_file_size(FILE* opened){
+uint32_t get_file_size(FILE* opened){
     fseek(opened, 0L, SEEK_END);
-    uint64_t file_size = (uint64_t) ftell(opened);
+    uint32_t file_size = (uint32_t) ftell(opened);
     fseek(opened, 0L, SEEK_SET);
     return file_size;
-};
+}
 
-// simple version now
+int net_client_send_length(app_client * const client, uint32_t length, int index){
+    const uint32_t net_len = htonl(length);
+
+    if (send_digit(client->server_fd[index], &net_len, sizeof(net_len)) < 0)
+    {
+        printf("failed sending filesize\n");
+        return -1;
+    }
+    return 0;
+}
+
+// prefixed length
 int net_client_send_file(app_client * const client, char *filename, int index) {
     int result = -1;
+    
     FILE* opened = fopen(filename, "rb");
+    
     if (opened == NULL)
     {
         printf("file not found: %m\n");
         goto end;
     }
 
-    uint64_t file_size = get_file_size(opened);
+    uint32_t file_size = get_file_size(opened);
 
-    printf("File size: %lld\n", file_size);
+    net_client_send_length(client, file_size, 0);
+
+    printf("File size: %lu\n", file_size);
 
     char *buffer = (char*) calloc(file_size, sizeof(char));
 
@@ -139,7 +190,7 @@ int net_client_send_file(app_client * const client, char *filename, int index) {
 
     int r = fread(buffer, sizeof(char), file_size - 1, opened);
 
-    int written = net_client_write(client, buffer, 0);
+    int written = net_client_write_(client, buffer, 0);
     
     if (written < 0)
     {
@@ -169,16 +220,47 @@ int net_client_close(app_client * const client, int index) {
     return 0;
 }
 
-int main(void){
+int is_valid_ipv4(const char * hostname){
+    struct in_addr dest;
+    return inet_pton(AF_INET, hostname, &dest);
+}
+
+int main(int argc, char *argv[]){
     int result = -1;
     app_client client;
+    char * hostname = ADDR;
+
+    puts("nice");
+
+    if (argc > 1)
+    {
+        printf("argc checked");
+
+        if (argv[1] != NULL)
+        {
+            if (is_valid_ipv4(hostname))
+            {
+                strncpy(hostname, argv[1], sizeof(argv[1]));
+            }
+            else {
+                strncpy(hostname, LOCAL_ADDR, sizeof(LOCAL_ADDR));
+            }
+        }
+    }
+    // else {
+    //     strncpy(hostname, LOCAL_ADDR, sizeof(LOCAL_ADDR));
+    // }
+
+
+
+    
 
     char request[4][64] = {"message for you my dear server",
                             "another request to my dear server",
                             "request to my dear server 3: ressurection",
                             "slutshole lane: asscock redemption"};
 
-    if (net_client_init(&client, ADDR, 0) < 0)
+    if (net_client_init(&client, hostname, 0) < 0)
     {
         printf("net client init failed: %m\n");
         goto end;   
@@ -194,16 +276,16 @@ int main(void){
     
     
 
-    int requests_count = sizeof(request) / sizeof(request[0]);
+    // int requests_count = sizeof(request) / sizeof(request[0]);
 
-    for (size_t i = 0; i < requests_count; i++)
-    {
-        if (net_client_write(&client, request[i], 0) < 0)
-        {
-            printf("failed sending message #%d: %m\n", i);
-        }
-        printf("%s\n", request[i]);
-    }
+    // for (size_t i = 0; i < requests_count; i++)
+    // {
+    //     if (net_client_write_(&client, request[i], 0) < 0)
+    //     {
+    //         printf("failed sending message #%d: %m\n", i);
+    //     }
+    //     printf("%s\n", request[i]);
+    // }
     
     
     int sent = net_client_send_file(&client, "text.txt", 0);

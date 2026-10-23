@@ -14,6 +14,6 @@ echo Using:${CXX}
 # BUILD_DIR0="tcp/build/$NAME"
 # BUILD_DIR1="tcp/build/$NAME1"
 
-g++ -g -O2 -Wall -Wextra -march=native -flto server.cpp -o server
+g++ -g -O2 -Wall -Wextra -march=native -flto server.cpp -o ~/works/lazy/server
 # ${CXX} -O2 -Wall -Wextra -flto client.cpp -o client
 # adb push client /oem

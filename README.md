@@ -25,10 +25,7 @@ Before you test camera program on LuckFox board, you better send config file to 
 ```bash
 adb push camera/note/config.json /userdata
 ```
-To build converter-server part first of all you need to use `downloads.sh` script in `converter/libs` for downloading all required opencv-mobile libraries. Then I recommend to use `converter/build.sh`, CMake is used there, it will build the executable file. Then:
-```bash
-adb push
-```
+To build converter-server part first of all you need to use `downloads.sh` script in `converter/libs` for downloading all required opencv-mobile libraries. Then I recommend to use `converter/build.sh`, CMake is used there, it will build the executable file.
 
 ### How to start converter as daemon?
 Just place that script as `S45camera` to `/etc/init.d` directory in your LuckFox. It's initial script to load all required video nodes and starting converter-server:

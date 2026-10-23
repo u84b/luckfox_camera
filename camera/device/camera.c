@@ -154,13 +154,10 @@ int camera_cleanup_buffers(camera * const c)
 
     c->buffer_count = 0;
     c->plane_count = 0;
-// I mixed up checking the state and cleaning up resources. But now I fixed it
     return 0;
 }
 
 
-// @TODO: it's relevant to make it more efficient/able to handle more errno
-// @TODO: think about cleanup...
 int camera_open_video_interface(camera * const c, const char * const filename){
     int result = -1;
 
@@ -430,7 +427,7 @@ void camera_stream_off(camera * const c){
 // @TODO: add error description
 int camera_off(camera * const c){
     if (c == NULL) return -1;
-    if (close(c->fd) < -1)
+    if (c->fd < 0)
     {
         fprintf(stderr, "Warning: bad file descriptor\n");
     }

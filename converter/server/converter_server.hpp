@@ -62,6 +62,17 @@ namespace server {
         bool check_connection(cserver * srv);
         bool run(cserver * srv, const std::function<void(cserver *, int)>& func);
 
+        int sendn(int srv_fd, const void * bytes, size_t length);
+        ssize_t recvn(int fd, void * buffer, size_t length);
+        ssize_t recvn(int fd, void * buffer, size_t length);
+        ssize_t receive_header(int fd, uint8_t * buf);
+        ssize_t receive_filesize(int fd, uint32_t size);
+        ssize_t receive_message(int fd, uint32_t size);
+        ssize_t receive_block(int srv_fd, FILE *fd, uint32_t filesize, uint8_t *buffer);
+        int receive_file(int srv_fd, FILE * fd, const char * header_name);
+
+        
+
     } 
 
 }

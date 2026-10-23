@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <inttypes.h>
 
 static volatile sig_atomic_t keep_running = 1;
 
@@ -18,14 +19,28 @@ extern "C" void handle_signal(int signum) {
     
 }
 
-
-
-// I used it for tests
-
-
-
-
+#define IP_ADDR "192.168.0.142"
 #define PORT 8080
+
+
+
+ssize_t recvn(int fd, void *buf, size_t n) {
+    puts("recvn called");
+    size_t  received = 0;
+    uint8_t *ptr     = (uint8_t *)buf;
+    while (received < n) {
+        ssize_t r = recv(fd, ptr + received, n - received, 0);
+        if (r < 0 && errno == EINTR) 
+            continue;
+        if (r == 0)  
+            return 0;   /* peer closed */
+        if (r < 0)   
+            return -1;  /* error */
+        received += (size_t)r;
+    }
+    return (ssize_t)received;
+}
+
 
 int main()
 {
@@ -43,6 +58,13 @@ int main()
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = htonl(INADDR_ANY);
     address.sin_port = htons(PORT);
+
+    if (inet_pton(AF_INET, IP_ADDR, &address.sin_addr) != 1)
+    {
+        close(server_fd);
+        server_fd = -1;
+        return -1;
+    }
 
     if (bind(server_fd, (sockaddr *)&address,
              sizeof(address)) < 0) {
@@ -72,39 +94,35 @@ int main()
     }
 
     std::string pending;
-    char buffer[128];
+    
 
     while (true) {
-        ssize_t n = recv(client_fd, buffer, sizeof(buffer), 0);
+        uint32_t net_len;
 
-        if (n < 0) {
-            if (errno == EINTR)
-                continue;
-
-            perror("recv");
-            break;
+        if (recvn(client_fd, &net_len, sizeof(net_len)) <= 0){
+            puts("recvn length failed");
+            return -1;
+        }
+            
+        uint32_t payload_len = ntohl(net_len);
+        printf("The number is: %" PRIu32 "\n", payload_len); 
+        void *buffer = malloc(payload_len);
+        if (!buffer)
+        {
+            puts("buffer is NULL");
+            return -1;
         }
 
-        if (n == 0) {
-            printf("Client disconnected\n");
-            break;
+        if (recvn(client_fd, buffer, payload_len) <= 0)
+        {
+            free(buffer);
+            puts("recvn message failed");
+            return -1;
         }
 
-        // Process every byte received. A read may contain
-        // partial messages or multiple complete messages.
-        for (ssize_t i = 0; i < n; ++i) {
-            if (buffer[i] == '\n') {
-                if (!pending.empty() &&
-                    pending.back() == '\r') {
-                    pending.pop_back();
-                }
+        printf("Received: %s\n", (char*) buffer);
 
-                printf("Received: %s\n", pending.c_str());
-                pending.clear();
-            } else {
-                pending += buffer[i];
-            }
-        }
+        free(buffer);
     }
 
     if (!pending.empty()) {
